@@ -10,7 +10,7 @@ namespace IT15_Project.Data
     public static class DbSeeder
     {
         /// <summary>
-        /// Seeds roles, admin user, and admin personnel record
+        /// Seeds roles, test company, and role-based test accounts
         /// Call this method in Program.cs after app.Build()
         /// </summary>
         public static async Task SeedRolesAndAdminAsync(IServiceProvider serviceProvider)
@@ -19,8 +19,8 @@ namespace IT15_Project.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Define roles
-            string[] roleNames = { "Admin", "Manager", "Technician", "Requester" };
+            // Define roles (new RBAC structure)
+            string[] roleNames = { "Owner", "Admin", "Technician", "User" };
 
             // Create roles if they don't exist
             foreach (var roleName in roleNames)
@@ -29,87 +29,162 @@ namespace IT15_Project.Data
                 {
                     var role = new IdentityRole(roleName);
                     await roleManager.CreateAsync(role);
+                    Console.WriteLine($"Role created: {roleName}");
                 }
             }
 
-            // Create admin user and personnel
-            await CreateAdminUserAsync(userManager, context);
+            // Ensure test company exists
+            await EnsureTestCompanyAsync(context);
+
+            // Create test accounts for each role
+            await CreateRoleTestAccountsAsync(userManager, context);
         }
 
         /// <summary>
-        /// Creates the default admin user and personnel record if they don't exist
+        /// Ensures test company exists for seeding
         /// </summary>
-        private static async Task CreateAdminUserAsync(UserManager<ApplicationUser> userManager, ApplicationDbContext context)
+        private static async Task EnsureTestCompanyAsync(ApplicationDbContext context)
         {
-            var adminEmail = "admin@maintenx.com";
-            var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-            if (adminUser == null)
+            var testCompany = await context.Companies.FirstOrDefaultAsync(c => c.CompanyId == 1);
+            
+            if (testCompany == null)
             {
-                // Create user account
-                adminUser = new ApplicationUser
+                testCompany = new Company
                 {
-                    UserName = adminEmail,
-                    Email = adminEmail,
-                    EmailConfirmed = true
+                    CompanyName = "Demo Company",
+                    SubscriptionPlan = "Enterprise",
+                    SubscriptionExpiry = DateTime.UtcNow.AddYears(1),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    ContactEmail = "admin@democompany.com",
+                    MaxUsers = 100,
+                    MaxAssets = 1000
                 };
 
-                var result = await userManager.CreateAsync(adminUser, "Admin@123");
-
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(adminUser, "Admin");
-                    
-                    // Create personnel record
-                    var adminPersonnel = new Personnel
-                    {
-                        UserId = adminUser.Id,
-                        FirstName = "System",
-                        LastName = "Administrator",
-                        Role = "Admin",
-                        SkillSet = "System Administration",
-                        IsActive = true,
-                        CreatedAt = DateTime.Now
-                    };
-
-                    context.Personnel.Add(adminPersonnel);
-                    await context.SaveChangesAsync();
-
-                    Console.WriteLine($"Admin user and personnel created: {adminEmail}");
-                }
-                else
-                {
-                    Console.WriteLine("Failed to create admin user:");
-                    foreach (var error in result.Errors)
-                    {
-                        Console.WriteLine($"- {error.Description}");
-                    }
-                }
+                context.Companies.Add(testCompany);
+                await context.SaveChangesAsync();
+                Console.WriteLine($"Test company created: {testCompany.CompanyName} (ID: {testCompany.CompanyId})");
             }
             else
             {
-                Console.WriteLine("Admin user already exists.");
+                Console.WriteLine($"Test company already exists: {testCompany.CompanyName} (ID: {testCompany.CompanyId})");
+            }
+        }
+
+        /// <summary>
+        /// Creates test accounts for each role with proper CompanyId assignment
+        /// </summary>
+        private static async Task CreateRoleTestAccountsAsync(UserManager<ApplicationUser> userManager, ApplicationDbContext context)
+        {
+            var testCompanyId = 1; // Demo Company
+
+            var testAccounts = new[]
+            {
+                new { 
+                    Email = "owner@test.com", 
+                    Password = "Owner@123", 
+                    Role = "Owner",
+                    FullName = "Sarah Johnson",
+                    FirstName = "Sarah",
+                    LastName = "Johnson",
+                    SkillSet = "Business Management, Operations",
+                    HourlyRate = 0m
+                },
+                new { 
+                    Email = "admin@test.com", 
+                    Password = "Admin@123", 
+                    Role = "Admin",
+                    FullName = "Michael Chen",
+                    FirstName = "Michael",
+                    LastName = "Chen",
+                    SkillSet = "System Administration, IT Management",
+                    HourlyRate = 0m
+                },
+                new { 
+                    Email = "technician@test.com", 
+                    Password = "Tech@123", 
+                    Role = "Technician",
+                    FullName = "David Martinez",
+                    FirstName = "David",
+                    LastName = "Martinez",
+                    SkillSet = "HVAC, Electrical, Plumbing, Mechanical",
+                    HourlyRate = 45.00m
+                },
+                new { 
+                    Email = "technician123@test.com", 
+                    Password = "Tech@123", 
+                    Role = "Technician",
+                    FullName = "James Wilson",
+                    FirstName = "James",
+                    LastName = "Wilson",
+                    SkillSet = "Electrical, Electronics, Automation",
+                    HourlyRate = 42.00m
+                },
+                new { 
+                    Email = "user@test.com", 
+                    Password = "User@123", 
+                    Role = "User",
+                    FullName = "Emily Rodriguez",
+                    FirstName = "Emily",
+                    LastName = "Rodriguez",
+                    SkillSet = "",
+                    HourlyRate = 0m
+                }
+            };
+
+            foreach (var accountData in testAccounts)
+            {
+                var user = await userManager.FindByEmailAsync(accountData.Email);
                 
-                // Check if personnel record exists
-                var personnelExists = await context.Personnel.AnyAsync(p => p.UserId == adminUser.Id);
-                
-                if (!personnelExists)
+                if (user == null)
                 {
-                    Console.WriteLine("Creating missing personnel record for admin...");
-                    var adminPersonnel = new Personnel
+                    // Create user account with CompanyId
+                    user = new ApplicationUser
                     {
-                        UserId = adminUser.Id,
-                        FirstName = "System",
-                        LastName = "Administrator",
-                        Role = "Admin",
-                        SkillSet = "System Administration",
-                        IsActive = true,
-                        CreatedAt = DateTime.Now
+                        UserName = accountData.Email,
+                        Email = accountData.Email,
+                        EmailConfirmed = true,
+                        CompanyId = testCompanyId,
+                        FullName = accountData.FullName
                     };
 
-                    context.Personnel.Add(adminPersonnel);
-                    await context.SaveChangesAsync();
-                    Console.WriteLine("Admin personnel record created.");
+                    var result = await userManager.CreateAsync(user, accountData.Password);
+
+                    if (result.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(user, accountData.Role);
+                        
+                        // Create personnel record
+                        var personnel = new Personnel
+                        {
+                            CompanyId = testCompanyId,
+                            UserId = user.Id,
+                            FirstName = accountData.FirstName,
+                            LastName = accountData.LastName,
+                            Role = accountData.Role,
+                            SkillSet = accountData.SkillSet,
+                            HourlyRate = accountData.HourlyRate > 0 ? accountData.HourlyRate : null,
+                            IsActive = true,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        context.Personnel.Add(personnel);
+                        await context.SaveChangesAsync();
+
+                        Console.WriteLine($"✓ Test account created: {accountData.Email} | Role: {accountData.Role} | Password: {accountData.Password}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"✗ Failed to create {accountData.Email}:");
+                        foreach (var error in result.Errors)
+                        {
+                            Console.WriteLine($"  - {error.Description}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Account already exists: {accountData.Email}");
                 }
             }
         }
@@ -283,6 +358,7 @@ namespace IT15_Project.Data
         public static async Task SeedCategoriesAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
+            var testCompanyId = 1; // Demo Company
 
             var categories = new[]
             {
@@ -298,11 +374,16 @@ namespace IT15_Project.Data
 
             foreach (var categoryName in categories)
             {
-                var exists = await context.Categories.AnyAsync(c => c.CategoryName == categoryName);
+                var exists = await context.Categories
+                    .AnyAsync(c => c.CategoryName == categoryName && c.CompanyId == testCompanyId);
                 
                 if (!exists)
                 {
-                    context.Categories.Add(new Category { CategoryName = categoryName });
+                    context.Categories.Add(new Category 
+                    { 
+                        CategoryName = categoryName,
+                        CompanyId = testCompanyId
+                    });
                     Console.WriteLine($"Category created: {categoryName}");
                 }
             }
@@ -316,13 +397,19 @@ namespace IT15_Project.Data
         public static async Task SeedAssetsAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
+            var testCompanyId = 1; // Demo Company
 
             // Get category IDs
-            var hvacCategory = await context.Categories.FirstOrDefaultAsync(c => c.CategoryName == "HVAC Systems");
-            var electricalCategory = await context.Categories.FirstOrDefaultAsync(c => c.CategoryName == "Electrical Equipment");
-            var plumbingCategory = await context.Categories.FirstOrDefaultAsync(c => c.CategoryName == "Plumbing Systems");
-            var mechanicalCategory = await context.Categories.FirstOrDefaultAsync(c => c.CategoryName == "Mechanical Equipment");
-            var safetyCategory = await context.Categories.FirstOrDefaultAsync(c => c.CategoryName == "Safety Systems");
+            var hvacCategory = await context.Categories
+                .FirstOrDefaultAsync(c => c.CategoryName == "HVAC Systems" && c.CompanyId == testCompanyId);
+            var electricalCategory = await context.Categories
+                .FirstOrDefaultAsync(c => c.CategoryName == "Electrical Equipment" && c.CompanyId == testCompanyId);
+            var plumbingCategory = await context.Categories
+                .FirstOrDefaultAsync(c => c.CategoryName == "Plumbing Systems" && c.CompanyId == testCompanyId);
+            var mechanicalCategory = await context.Categories
+                .FirstOrDefaultAsync(c => c.CategoryName == "Mechanical Equipment" && c.CompanyId == testCompanyId);
+            var safetyCategory = await context.Categories
+                .FirstOrDefaultAsync(c => c.CategoryName == "Safety Systems" && c.CompanyId == testCompanyId);
 
             if (hvacCategory == null || electricalCategory == null || plumbingCategory == null || 
                 mechanicalCategory == null || safetyCategory == null)
@@ -407,12 +494,14 @@ namespace IT15_Project.Data
 
             foreach (var assetData in assets)
             {
-                var exists = await context.Assets.AnyAsync(a => a.AssetName == assetData.AssetName);
+                var exists = await context.Assets
+                    .AnyAsync(a => a.AssetName == assetData.AssetName && a.CompanyId == testCompanyId);
                 
                 if (!exists)
                 {
                     var asset = new Asset
                     {
+                        CompanyId = testCompanyId,
                         AssetName = assetData.AssetName,
                         CategoryId = assetData.CategoryId,
                         Location = assetData.Location,

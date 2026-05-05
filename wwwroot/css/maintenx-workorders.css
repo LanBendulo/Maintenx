@@ -330,3 +330,43 @@
 }
 .mx-toast-error.show { transform: translateX(0); }
 .mx-toast-error .toast-icon { font-size: 18px; }
+
+/* Readonly fields for Maintenance Logs */
+.mx-readonly {
+    padding: 10px 12px; border: 1.5px solid var(--mx-border);
+    border-radius: 6px; font-size: 13.5px; background: #f8f9fa;
+    color: var(--mx-text); min-height: 38px;
+}
+
+.btn-view-details {
+    padding: 6px 14px; font-size: 13px; font-weight: 500;
+    background: var(--mx-blue); color: white; border: none;
+    border-radius: 6px; cursor: pointer; transition: all .2s ease;
+}
+.btn-view-details:hover { background: #0c3a7a; }
+
+/* Asset Details History Tabs */
+.history-tab {
+    padding: 10px 20px; background: none; border: none;
+    border-bottom: 2px solid transparent; cursor: pointer;
+    font-size: 14px; font-weight: 500; color: var(--mx-muted);
+    transition: all .2s ease;
+}
+.history-tab.active {
+    color: var(--mx-blue); border-bottom-color: var(--mx-blue);
+}
+.history-tab:hover { color: var(--mx-text); }
+
+.history-content { display: none; }
+.history-content.active { display: block; }
+
+.btn-secondary-mx {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; background: white; color: var(--mx-text);
+    border: 1.5px solid var(--mx-border); border-radius: 8px;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: all .2s ease; text-decoration: none;
+}
+.btn-secondary-mx:hover {
+    background: #f8f9fa; border-color: var(--mx-blue);
+}

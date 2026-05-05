@@ -1,0 +1,417 @@
+@model IEnumerable<IT15_Project.Models.MaintenanceRequest>
+
+@{
+    ViewData["Title"] = "My Maintenance Requests";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Active"] = "MaintenanceRequests";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>My Maintenance Requests</h1>
+        <p>View and track your maintenance requests</p>
+    </div>
+    <a href="/admin/maintenance-requests" class="btn-primary-mx">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        Submit New Request
+    </a>
+</div>
+
+<!-- SUMMARY CARDS (USER-SCOPED) -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count() ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count() ?? 0)</div>
+        <div class="stat-label">Total Requests</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <span class="stat-trend warn">● @(Model?.Count(mr => mr.Status == "Pending") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(mr => mr.Status == "Pending") ?? 0)</div>
+        <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(mr => mr.Status == "Approved") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(mr => mr.Status == "Approved") ?? 0)</div>
+        <div class="stat-label">Approved</div>
+    </div>
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(mr => mr.Status == "Converted") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@(Model?.Count(mr => mr.Status == "Converted") ?? 0)</div>
+        <div class="stat-label">Converted</div>
+    </div>
+</div>
+
+<!-- FILTER BAR (SIMPLIFIED FOR USER) -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="mr-search" placeholder="Search ID, asset, description…" />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="">All Status</option>
+            <option value="pending" selected="@(ViewBag.StatusFilter == "pending" ? "selected" : null)">Pending</option>
+            <option value="approved" selected="@(ViewBag.StatusFilter == "approved" ? "selected" : null)">Approved</option>
+            <option value="rejected" selected="@(ViewBag.StatusFilter == "rejected" ? "selected" : null)">Rejected</option>
+            <option value="converted" selected="@(ViewBag.StatusFilter == "converted" ? "selected" : null)">Converted</option>
+        </select>
+        <select class="filter-select" id="filter-priority">
+            <option value="">All Priority</option>
+            <option value="high">High</option>
+            <option value="med">Medium</option>
+            <option value="low">Low</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- MAINTENANCE REQUESTS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>My Maintenance Requests</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@(Model?.Count() ?? 0)</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="mr-table">
+            <thead>
+                <tr>
+                    <th>Request #</th>
+                    <th>Asset</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Work Order Status</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mr-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var mr in Model)
+                    {
+                        var statusClass = mr.Status?.ToLower() switch
+                        {
+                            "pending" => "pending",
+                            "approved" => "done",
+                            "rejected" => "cancelled",
+                            "converted" => "inprog",
+                            _ => "pending"
+                        };
+                        
+                        var priorityClass = mr.Priority?.ToLower() switch
+                        {
+                            "high" => "high",
+                            "medium" => "med",
+                            "low" => "low",
+                            _ => "med"
+                        };
+                        
+                        <tr data-status="@statusClass" data-priority="@priorityClass">
+                            <td class="td-id">@mr.RequestNumber</td>
+                            <td class="td-equip">@(mr.Asset?.AssetName ?? "N/A")</td>
+                            <td>
+                                <div style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    @mr.Title
+                                </div>
+                            </td>
+                            <td style="font-size:13px;color:var(--mx-muted)">@(mr.Category ?? "General")</td>
+                            <td><span class="badge-priority-@priorityClass">@mr.Priority</span></td>
+                            <td><span class="badge badge-@statusClass">@mr.Status</span></td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@mr.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                @if (mr.WorkOrder != null)
+                                {
+                                    var woStatusClass = mr.WorkOrder.Status?.ToLower() switch
+                                    {
+                                        "open" => "pending",
+                                        "in progress" => "inprog",
+                                        "completed" => "done",
+                                        _ => "pending"
+                                    };
+                                    <span class="badge badge-@woStatusClass">@mr.WorkOrder.Status</span>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);font-size:12px;">-</span>
+                                }
+                            </td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="#" class="action-view-details" data-mr-id="@mr.RequestId">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No maintenance requests found.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST -->
+<div class="mx-toast-success" id="mr-toast">
+    <span class="toast-icon">✅</span>
+    <span id="toast-message">Action completed successfully!</span>
+</div>
+
+<!-- VIEW DETAILS MODAL -->
+<div class="mx-modal-overlay" id="mrDetailsModal" role="dialog" aria-modal="true">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(43,126,212,.10);color:var(--mx-blue);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title">Request Details</div>
+                    <div class="modal-subtitle" id="details-modal-subtitle">MR-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeDetailsModal">×</button>
+        </div>
+        <div class="modal-body" style="max-height:500px;overflow-y:auto;">
+            <div style="display:grid;gap:16px;">
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Title</label>
+                    <p id="details-title" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Description</label>
+                    <p id="details-description" style="margin:4px 0 0;font-size:14px;line-height:1.6;">-</p>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Asset</label>
+                        <p id="details-asset" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Category</label>
+                        <p id="details-category" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Priority</label>
+                        <p id="details-priority" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Status</label>
+                        <p id="details-status" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Submitted</label>
+                        <p id="details-created" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Work Order Status</label>
+                        <p id="details-wo-status" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="closeDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function() {
+    // Filter: Status
+    document.getElementById('filter-status').addEventListener('change', function() {
+        var status = this.value;
+        window.location.href = '/userdashboard/maintenance-requests?status=' + status;
+    });
+
+    // Filter: Search
+    document.getElementById('mr-search').addEventListener('input', function() {
+        var searchTerm = this.value.toLowerCase();
+        var rows = document.querySelectorAll('#mr-tbody tr');
+        var visibleCount = 0;
+
+        rows.forEach(function(row) {
+            var text = row.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.querySelector('#row-count strong').textContent = visibleCount;
+    });
+
+    // Filter: Priority
+    document.getElementById('filter-priority').addEventListener('change', function() {
+        var priority = this.value;
+        var rows = document.querySelectorAll('#mr-tbody tr');
+        var visibleCount = 0;
+
+        rows.forEach(function(row) {
+            if (!priority || row.dataset.priority === priority) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.querySelector('#row-count strong').textContent = visibleCount;
+    });
+
+    // Reset Filters
+    document.getElementById('reset-filters').addEventListener('click', function() {
+        document.getElementById('mr-search').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-priority').value = '';
+        
+        var rows = document.querySelectorAll('#mr-tbody tr');
+        rows.forEach(function(row) {
+            row.style.display = '';
+        });
+        
+        document.querySelector('#row-count strong').textContent = rows.length;
+    });
+
+    // Action Menu Toggle
+    document.querySelectorAll('.action-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var dropdown = this.nextElementSibling;
+            var isOpen = dropdown.classList.contains('show');
+            
+            document.querySelectorAll('.action-dropdown').forEach(function(d) {
+                d.classList.remove('show');
+            });
+            
+            if (!isOpen) {
+                dropdown.classList.add('show');
+            }
+        });
+    });
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.action-dropdown').forEach(function(d) {
+            d.classList.remove('show');
+        });
+    });
+
+    // View Details
+    document.querySelectorAll('.action-view-details').forEach(function(link) {
+        link.addEventListener('click', async function(e) {
+            e.preventDefault();
+            var mrId = this.dataset.mrId;
+            
+            try {
+                var response = await fetch('/userdashboard/maintenance-requests/' + mrId);
+                var data = await response.json();
+                
+                if (data) {
+                    document.getElementById('details-modal-subtitle').textContent = data.requestNumber;
+                    document.getElementById('details-title').textContent = data.title || '-';
+                    document.getElementById('details-description').textContent = data.description || '-';
+                    document.getElementById('details-asset').textContent = data.assetName || 'N/A';
+                    document.getElementById('details-category').textContent = data.category || 'General';
+                    document.getElementById('details-priority').textContent = data.priority || '-';
+                    document.getElementById('details-status').textContent = data.status || '-';
+                    document.getElementById('details-created').textContent = data.createdAt ? new Date(data.createdAt).toLocaleDateString() : '-';
+                    document.getElementById('details-wo-status').textContent = data.workOrderStatus || 'Not converted';
+                    
+                    openModal('mrDetailsModal');
+                }
+            } catch (error) {
+                showToast('Failed to load request details', false);
+                console.error(error);
+            }
+        });
+    });
+
+    // Modal Functions
+    function openModal(id) {
+        document.getElementById(id).classList.add('show');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('show');
+    }
+
+    document.getElementById('closeDetailsModal').addEventListener('click', function() {
+        closeModal('mrDetailsModal');
+    });
+
+    document.getElementById('closeDetailsBtn').addEventListener('click', function() {
+        closeModal('mrDetailsModal');
+    });
+
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('mx-modal-overlay')) {
+            event.target.classList.remove('show');
+        }
+    });
+
+    // Toast Function
+    function showToast(message, success) {
+        var toast = document.getElementById('mr-toast');
+        var messageEl = document.getElementById('toast-message');
+        
+        messageEl.textContent = message;
+        toast.style.borderLeftColor = success ? '#22C55E' : '#EF4444';
+        toast.querySelector('.toast-icon').textContent = success ? '✅' : '❌';
+        
+        toast.classList.add('show');
+        
+        setTimeout(function() {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+})();
+</script>
+}

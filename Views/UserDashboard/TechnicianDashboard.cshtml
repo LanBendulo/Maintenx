@@ -1,0 +1,295 @@
+@{
+    ViewData["Title"] = "Technician Dashboard";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Active"] = "Dashboard";
+}
+
+<div class="dashboard-grid">
+    <!-- Stats Cards -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #FFF4E6;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Open Work Orders</div>
+                <div class="stat-value">@ViewBag.OpenCount</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #EFF6FF;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">In Progress</div>
+                <div class="stat-value">@ViewBag.InProgressCount</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #F0FDF4;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Completed Today</div>
+                <div class="stat-value">@ViewBag.CompletedTodayCount</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Work Orders -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2>My Assigned Work Orders</h2>
+            <a href="/work-orders" class="btn-secondary">View All</a>
+        </div>
+
+        @if (ViewBag.AssignedWorkOrders != null && ViewBag.AssignedWorkOrders.Count > 0)
+        {
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Work Order ID</th>
+                            <th>Asset</th>
+                            <th>Description</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var wo in ViewBag.AssignedWorkOrders)
+                        {
+                            <tr>
+                                <td><strong>#@wo.WorkOrderId</strong></td>
+                                <td>@(wo.Asset?.AssetName ?? "N/A")</td>
+                                <td>
+                                    <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @wo.Description
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-@(wo.Priority?.ToLower() ?? "medium")">
+                                        @(wo.Priority ?? "Medium")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-@(wo.Status?.ToLower().Replace(" ", "-") ?? "open")">
+                                        @(wo.Status ?? "Open")
+                                    </span>
+                                </td>
+                                <td>@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "Not set")</td>
+                                <td>
+                                    <a href="/work-orders?id=@wo.WorkOrderId" class="btn-sm btn-primary">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <h3>No Work Orders Assigned</h3>
+                <p>You don't have any work orders assigned to you at the moment.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+.dashboard-grid {
+    padding: 2rem;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.dashboard-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    background: #F9FAFB;
+}
+
+.data-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #F3F4F6;
+    font-size: 0.875rem;
+    color: #111827;
+}
+
+.data-table tbody tr:hover {
+    background: #F9FAFB;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.badge-high { background: #FEE2E2; color: #991B1B; }
+.badge-medium { background: #FEF3C7; color: #92400E; }
+.badge-low { background: #DBEAFE; color: #1E40AF; }
+.badge-open { background: #FEF3C7; color: #92400E; }
+.badge-in-progress { background: #DBEAFE; color: #1E40AF; }
+.badge-completed { background: #D1FAE5; color: #065F46; }
+.badge-cancelled { background: #F3F4F6; color: #374151; }
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #F47920;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #E06810;
+}
+
+.btn-secondary {
+    background: #F3F4F6;
+    color: #374151;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.btn-secondary:hover {
+    background: #E5E7EB;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    color: #9CA3AF;
+    margin: 0 auto 1rem;
+}
+
+.empty-state h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #6B7280;
+    font-size: 0.875rem;
+}
+</style>

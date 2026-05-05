@@ -124,10 +124,30 @@ namespace IT15_Project.Areas.Identity.Pages.Account
 
                     // ── Role-based redirect ──────────────────────────────
                     var user = await _userManager.FindByEmailAsync(Input.Email);
-                    if (user != null && await _userManager.IsInRoleAsync(user, "Admin"))
-                        return Redirect("/admin/dashboard");
+                    if (user != null)
+                    {
+                        // Owner and Admin go to admin dashboard (full system metrics)
+                        if (await _userManager.IsInRoleAsync(user, "Admin") || 
+                            await _userManager.IsInRoleAsync(user, "Owner"))
+                        {
+                            return Redirect("/admin/dashboard");
+                        }
 
-                    return RedirectToAction("Index", "UserDashboard");
+                        // Technician goes to dedicated technician dashboard
+                        if (await _userManager.IsInRoleAsync(user, "Technician"))
+                        {
+                            return Redirect("/dashboard");
+                        }
+
+                        // User goes to user dashboard (maintenance requests)
+                        if (await _userManager.IsInRoleAsync(user, "User"))
+                        {
+                            return Redirect("/userdashboard");
+                        }
+                    }
+
+                    // Fallback: go to home page
+                    return LocalRedirect(returnUrl);
                 }
                 if (result.RequiresTwoFactor)
                 {

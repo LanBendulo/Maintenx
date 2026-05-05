@@ -14,6 +14,10 @@ namespace IT15_Project.Models
         [Column("personnel_id")]
         public int PersonnelId { get; set; }
 
+        [Column("company_id")]
+        [Required]
+        public int CompanyId { get; set; }
+
         [Column("user_id")]
         [StringLength(450)]
         public string? UserId { get; set; }
@@ -48,6 +52,10 @@ namespace IT15_Project.Models
         // Computed property
         [NotMapped]
         public string FullName => $"{FirstName} {LastName}".Trim();
+
+        // Navigation properties
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
 
         // Navigation property to user account (optional)
         [ForeignKey("UserId")]

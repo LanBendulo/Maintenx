@@ -5,25 +5,32 @@ using Microsoft.EntityFrameworkCore;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using IT15_Project.Models.ViewModels;
+using IT15_Project.Services;
 using System.Security.Claims;
 
 namespace IT15_Project.Controllers
 {
     /// <summary>
-    /// Admin-only dashboard. Accessible at /admin/dashboard.
-    /// Any unauthenticated or non-Admin request is rejected (401/403).
+    /// Dashboard for Owner role only. Accessible at /admin/dashboard.
+    /// Shows full system metrics, all work orders, maintenance requests, assets.
+    /// MULTI-TENANT: All queries filtered by CompanyId
     /// </summary>
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Owner")]
     [Route("admin")]
     public class DashboardController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ITenantService _tenantService;
 
-        public DashboardController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public DashboardController(
+            ApplicationDbContext context, 
+            UserManager<ApplicationUser> userManager,
+            ITenantService tenantService)
         {
             _context = context;
             _userManager = userManager;
+            _tenantService = tenantService;
         }
 
         [Route("dashboard")]
@@ -38,13 +45,23 @@ namespace IT15_Project.Controllers
         {
             try
             {
-                var assetCount = await _context.Assets.CountAsync();
-                var categoryCount = await _context.Categories.CountAsync();
-                var personnelCount = await _context.Personnel.CountAsync();
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var assetCount = await _context.Assets
+                    .Where(a => a.CompanyId == companyId)
+                    .CountAsync();
+                var categoryCount = await _context.Categories
+                    .Where(c => c.CompanyId == companyId)
+                    .CountAsync();
+                var personnelCount = await _context.Personnel
+                    .Where(p => p.CompanyId == companyId)
+                    .CountAsync();
                 
                 return Ok(new {
                     success = true,
                     message = "Database connection successful",
+                    companyId = companyId,
                     counts = new {
                         assets = assetCount,
                         categories = categoryCount,
@@ -66,7 +83,11 @@ namespace IT15_Project.Controllers
         [Route("work-orders")]
         public async Task<IActionResult> WorkOrders(string filter = "active")
         {
+            // TENANT-AWARE: Filter by current company
+            var companyId = _tenantService.GetCurrentCompanyId();
+            
             var query = _context.WorkOrders
+                .Where(w => w.CompanyId == companyId)  // TENANT FILTER
                 .Include(w => w.Asset)
                 .Include(w => w.AssignedToPersonnel)
                 .Include(w => w.CreatedByPersonnel)
@@ -80,7 +101,7 @@ namespace IT15_Project.Controllers
                     query = query.Where(w => w.IsArchived);
                     break;
                 case "all":
-                    // No filter - show everything
+                    // No filter - show everything (but still filtered by company)
                     break;
                 case "active":
                 default:
@@ -116,6 +137,9 @@ namespace IT15_Project.Controllers
 
             try
             {
+                // TENANT-AWARE: Get current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 // Get current user's personnel record
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 
@@ -125,6 +149,7 @@ namespace IT15_Project.Controllers
                 }
                 
                 var currentPersonnel = await _context.Personnel
+                    .Where(p => p.CompanyId == companyId)  // TENANT FILTER
                     .FirstOrDefaultAsync(p => p.UserId == userId);
 
                 if (currentPersonnel == null)
@@ -139,6 +164,7 @@ namespace IT15_Project.Controllers
                 if (model.MaintenanceRequestId.HasValue)
                 {
                     var request = await _context.MaintenanceRequests
+                        .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
                         .Include(mr => mr.WorkOrder)
                         .FirstOrDefaultAsync(mr => mr.RequestId == model.MaintenanceRequestId.Value);
 
@@ -165,6 +191,7 @@ namespace IT15_Project.Controllers
 
                 var workOrder = new WorkOrder
                 {
+                    CompanyId = companyId,  // TENANT ASSIGNMENT
                     AssetId = model.AssetId,
                     AssignedTo = model.AssignedTo,
                     CreatedBy = currentPersonnel.PersonnelId,
@@ -181,7 +208,10 @@ namespace IT15_Project.Controllers
                 // If linked to request, update request status to Converted
                 if (model.MaintenanceRequestId.HasValue)
                 {
-                    var request = await _context.MaintenanceRequests.FindAsync(model.MaintenanceRequestId.Value);
+                    var request = await _context.MaintenanceRequests
+                        .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
+                        .FirstOrDefaultAsync(mr => mr.RequestId == model.MaintenanceRequestId.Value);
+                    
                     if (request != null)
                     {
                         request.Status = "Converted";
@@ -214,7 +244,11 @@ namespace IT15_Project.Controllers
         [Route("work-orders/data")]
         public async Task<IActionResult> GetWorkOrdersData()
         {
+            // TENANT-AWARE: Filter by current company
+            var companyId = _tenantService.GetCurrentCompanyId();
+            
             var workOrders = await _context.WorkOrders
+                .Where(w => w.CompanyId == companyId)  // TENANT FILTER
                 .Include(w => w.Asset)
                 .Include(w => w.AssignedToPersonnel)
                 .Include(w => w.MaintenanceRequest)
@@ -242,39 +276,23 @@ namespace IT15_Project.Controllers
         {
             try
             {
-                // First, check if we can access the Assets table at all
-                var assetCount = await _context.Assets.CountAsync();
-                Console.WriteLine($"Total assets in database: {assetCount}");
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
                 
-                // Get all assets without filtering first
-                var allAssets = await _context.Assets.ToListAsync();
-                Console.WriteLine($"Retrieved {allAssets.Count} assets from database");
-                
-                // Now filter and project
-                var assets = allAssets
-                    .Where(a => a.Status != "Retired")
+                var assets = await _context.Assets
+                    .Where(a => a.CompanyId == companyId && a.Status != "Retired")  // TENANT FILTER
                     .Select(a => new { value = a.AssetId, text = a.AssetName })
-                    .ToList();
-                
-                Console.WriteLine($"Returning {assets.Count} assets to client");
+                    .ToListAsync();
                 
                 return Ok(assets);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR in GetAssets: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
-                
                 return StatusCode(500, new { 
                     success = false, 
                     message = "Failed to load assets", 
                     error = ex.Message,
-                    innerError = ex.InnerException?.Message,
-                    stackTrace = ex.StackTrace
+                    innerError = ex.InnerException?.Message
                 });
             }
         }
@@ -285,8 +303,13 @@ namespace IT15_Project.Controllers
         {
             try
             {
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var technicians = await _context.Personnel
-                    .Where(p => p.IsActive && (p.Role == "Technician" || p.Role == "Supervisor"))
+                    .Where(p => p.CompanyId == companyId &&  // TENANT FILTER
+                                p.IsActive && 
+                                (p.Role == "Technician" || p.Role == "Supervisor"))
                     .Select(p => new { 
                         value = p.PersonnelId, 
                         text = p.FullName,
@@ -313,10 +336,15 @@ namespace IT15_Project.Controllers
         [Route("maintenance-requests/approved")]
         public async Task<IActionResult> GetApprovedRequests()
         {
+            // TENANT-AWARE: Filter by current company
+            var companyId = _tenantService.GetCurrentCompanyId();
+            
             var requests = await _context.MaintenanceRequests
+                .Where(mr => mr.CompanyId == companyId &&  // TENANT FILTER
+                             mr.Status == "Approved" && 
+                             mr.WorkOrder == null)
                 .Include(mr => mr.Asset)
                 .Include(mr => mr.WorkOrder)
-                .Where(mr => mr.Status == "Approved" && mr.WorkOrder == null)
                 .Select(mr => new {
                     value = mr.RequestId,
                     text = $"{mr.RequestNumber} — {mr.Title}",
@@ -337,12 +365,16 @@ namespace IT15_Project.Controllers
         {
             try
             {
+                // TENANT-AWARE: Filter by current company AND id
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var workOrder = await _context.WorkOrders
+                    .Where(w => w.WorkOrderId == id && w.CompanyId == companyId)  // TENANT FILTER
                     .Include(w => w.Asset)
                     .Include(w => w.AssignedToPersonnel)
                     .Include(w => w.CreatedByPersonnel)
                     .Include(w => w.MaintenanceRequest)
-                    .FirstOrDefaultAsync(w => w.WorkOrderId == id);
+                    .FirstOrDefaultAsync();
 
                 if (workOrder == null)
                 {
@@ -382,7 +414,11 @@ namespace IT15_Project.Controllers
         {
             try
             {
-                var workOrder = await _context.WorkOrders.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before update
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);  // TENANT FILTER
 
                 if (workOrder == null)
                 {
@@ -430,6 +466,29 @@ namespace IT15_Project.Controllers
                         });
                     }
                     workOrder.ActualCompletion = request.ActualCompletion.Value;
+
+                    // AUTO-CREATE MAINTENANCE LOG
+                    // Check if log already exists (idempotent)
+                    var logExists = await _context.MaintenanceLogs
+                        .AnyAsync(ml => ml.WorkOrderId == workOrder.WorkOrderId);
+
+                    if (!logExists)
+                    {
+                        var maintenanceLog = new MaintenanceLog
+                        {
+                            CompanyId = workOrder.CompanyId,
+                            WorkOrderId = workOrder.WorkOrderId,
+                            AssetId = workOrder.AssetId,
+                            Title = $"Work Order #{workOrder.WorkOrderId}",
+                            Description = workOrder.Description,
+                            CompletedByPersonnelId = workOrder.AssignedTo,
+                            CompletedDate = request.ActualCompletion.Value,
+                            Notes = request.Notes,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        _context.MaintenanceLogs.Add(maintenanceLog);
+                    }
                 }
 
                 workOrder.Status = newStatus;
@@ -449,9 +508,13 @@ namespace IT15_Project.Controllers
         {
             try
             {
+                // TENANT-AWARE: Validate ownership before update
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var workOrder = await _context.WorkOrders
+                    .Where(w => w.WorkOrderId == id && w.CompanyId == companyId)  // TENANT FILTER
                     .Include(w => w.MaintenanceRequest)
-                    .FirstOrDefaultAsync(w => w.WorkOrderId == id);
+                    .FirstOrDefaultAsync();
 
                 if (workOrder == null)
                 {
@@ -574,7 +637,11 @@ namespace IT15_Project.Controllers
         {
             try
             {
-                var workOrder = await _context.WorkOrders.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before archive
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);  // TENANT FILTER
 
                 if (workOrder == null)
                 {
@@ -618,7 +685,11 @@ namespace IT15_Project.Controllers
         {
             try
             {
-                var workOrder = await _context.WorkOrders.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before unarchive
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);  // TENANT FILTER
 
                 if (workOrder == null)
                 {
@@ -650,6 +721,7 @@ namespace IT15_Project.Controllers
     {
         public string Status { get; set; } = string.Empty;
         public DateTime? ActualCompletion { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class EditWorkOrderRequest

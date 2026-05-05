@@ -4,26 +4,38 @@ using Microsoft.EntityFrameworkCore;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using IT15_Project.Models.ViewModels;
+using IT15_Project.Services;
 using System.Security.Claims;
 
 namespace IT15_Project.Controllers
 {
-    [Authorize(Roles = "Admin,Manager,Requester")]
+    /// <summary>
+    /// Maintenance Requests Controller
+    /// MULTI-TENANT: All queries filtered by CompanyId
+    /// RBAC: Owner and User roles can access
+    /// </summary>
+    [Authorize(Roles = "Admin,Owner,User")]
     [Route("admin/maintenance-requests")]
     public class MaintenanceRequestsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ITenantService _tenantService;
 
-        public MaintenanceRequestsController(ApplicationDbContext context)
+        public MaintenanceRequestsController(ApplicationDbContext context, ITenantService tenantService)
         {
             _context = context;
+            _tenantService = tenantService;
         }
 
         [HttpGet]
         [Route("")]
         public async Task<IActionResult> Index(string filter = "active")
         {
+            // TENANT-AWARE: Filter by current company
+            var companyId = _tenantService.GetCurrentCompanyId();
+            
             var query = _context.MaintenanceRequests
+                .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
                 .Include(mr => mr.Asset)
                 .Include(mr => mr.RequestedByPersonnel)
                 .Include(mr => mr.WorkOrder)
@@ -36,7 +48,7 @@ namespace IT15_Project.Controllers
                     query = query.Where(mr => mr.IsArchived);
                     break;
                 case "all":
-                    // No filter - show everything
+                    // No filter - show everything (but still filtered by company)
                     break;
                 case "active":
                 default:
@@ -72,13 +84,18 @@ namespace IT15_Project.Controllers
 
             try
             {
+                // TENANT-AWARE: Get current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 // Get current user's personnel record
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var currentPersonnel = await _context.Personnel
+                    .Where(p => p.CompanyId == companyId)  // TENANT FILTER
                     .FirstOrDefaultAsync(p => p.UserId == userId);
 
                 // Generate request number
                 var lastRequest = await _context.MaintenanceRequests
+                    .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
                     .OrderByDescending(mr => mr.RequestId)
                     .FirstOrDefaultAsync();
                 
@@ -105,6 +122,7 @@ namespace IT15_Project.Controllers
 
                 var maintenanceRequest = new MaintenanceRequest
                 {
+                    CompanyId = companyId,  // TENANT ASSIGNMENT
                     RequestNumber = requestNumber,
                     Title = model.Title,
                     Description = model.Description,
@@ -145,11 +163,15 @@ namespace IT15_Project.Controllers
         {
             try
             {
+                // TENANT-AWARE: Filter by current company AND id
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var request = await _context.MaintenanceRequests
+                    .Where(mr => mr.RequestId == id && mr.CompanyId == companyId)  // TENANT FILTER
                     .Include(mr => mr.Asset)
                     .Include(mr => mr.RequestedByPersonnel)
                     .Include(mr => mr.WorkOrder)
-                    .FirstOrDefaultAsync(mr => mr.RequestId == id);
+                    .FirstOrDefaultAsync();
 
                 if (request == null)
                 {
@@ -184,12 +206,16 @@ namespace IT15_Project.Controllers
 
         [HttpPut]
         [Route("{id}/approve")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Approve(int id)
         {
             try
             {
-                var request = await _context.MaintenanceRequests.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before update
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var request = await _context.MaintenanceRequests
+                    .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
 
                 if (request == null)
                 {
@@ -215,12 +241,16 @@ namespace IT15_Project.Controllers
 
         [HttpPut]
         [Route("{id}/reject")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Reject(int id)
         {
             try
             {
-                var request = await _context.MaintenanceRequests.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before update
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var request = await _context.MaintenanceRequests
+                    .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
 
                 if (request == null)
                 {
@@ -236,7 +266,7 @@ namespace IT15_Project.Controllers
                 request.UpdatedAt = DateTime.Now;
                 await _context.SaveChangesAsync();
 
-                return Ok(new { success = true, message = "Request rejected successfully!" });
+                return Ok(new { success = false, message = "Request rejected successfully!" });
             }
             catch (Exception ex)
             {
@@ -246,14 +276,18 @@ namespace IT15_Project.Controllers
 
         [HttpPost]
         [Route("{id}/convert")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> ConvertToWorkOrder(int id)
         {
             try
             {
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var request = await _context.MaintenanceRequests
+                    .Where(mr => mr.RequestId == id && mr.CompanyId == companyId)  // TENANT FILTER
                     .Include(mr => mr.WorkOrder)
-                    .FirstOrDefaultAsync(mr => mr.RequestId == id);
+                    .FirstOrDefaultAsync();
 
                 if (request == null)
                 {
@@ -273,6 +307,7 @@ namespace IT15_Project.Controllers
                 // Get current user's personnel record
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var currentPersonnel = await _context.Personnel
+                    .Where(p => p.CompanyId == companyId)  // TENANT FILTER
                     .FirstOrDefaultAsync(p => p.UserId == userId);
 
                 if (currentPersonnel == null)
@@ -283,6 +318,7 @@ namespace IT15_Project.Controllers
                 // Create work order from maintenance request
                 var workOrder = new WorkOrder
                 {
+                    CompanyId = companyId,  // TENANT ASSIGNMENT
                     AssetId = request.AssetId,
                     Description = $"{request.Title}\n\n{request.Description}",
                     Priority = request.Priority,
@@ -323,7 +359,11 @@ namespace IT15_Project.Controllers
         {
             try
             {
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
                 var count = await _context.MaintenanceRequests
+                    .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
                     .CountAsync(mr => mr.Status == "Pending" && !mr.IsArchived);
 
                 return Ok(new { count });
@@ -336,12 +376,16 @@ namespace IT15_Project.Controllers
 
         [HttpPut]
         [Route("{id}/archive")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Archive(int id)
         {
             try
             {
-                var request = await _context.MaintenanceRequests.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before archive
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var request = await _context.MaintenanceRequests
+                    .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
 
                 if (request == null)
                 {
@@ -382,12 +426,16 @@ namespace IT15_Project.Controllers
 
         [HttpPut]
         [Route("{id}/unarchive")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Unarchive(int id)
         {
             try
             {
-                var request = await _context.MaintenanceRequests.FindAsync(id);
+                // TENANT-AWARE: Validate ownership before unarchive
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                var request = await _context.MaintenanceRequests
+                    .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
 
                 if (request == null)
                 {

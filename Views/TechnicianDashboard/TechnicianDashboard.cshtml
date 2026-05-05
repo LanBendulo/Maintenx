@@ -1,0 +1,170 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Active"] = "Dashboard";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<!-- ══════════════════════════════════════
+     TECHNICIAN DASHBOARD
+     Shows ONLY technician-relevant data
+════════════════════════════════════════ -->
+
+<!-- ROW 1 — SUMMARY CARDS (TECHNICIAN-SCOPED) -->
+<div class="stats-grid">
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.TotalAssigned</span>
+        </div>
+        <div class="stat-value">@ViewBag.TotalAssigned</div>
+        <div class="stat-label">Total Assigned Work Orders</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● @ViewBag.OpenCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@ViewBag.OpenCount</div>
+        <div class="stat-label">Open Work Orders</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.InProgressCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@ViewBag.InProgressCount</div>
+        <div class="stat-label">In Progress</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.CompletedTodayCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@ViewBag.CompletedTodayCount</div>
+        <div class="stat-label">Completed Today</div>
+    </div>
+</div>
+
+<!-- ROW 2 — MY ASSIGNED WORK ORDERS -->
+<div class="card">
+    <div class="section-header">
+        <h2>My Assigned Work Orders</h2>
+        <a href="/work-orders" class="view-all">View All</a>
+    </div>
+
+    @if (ViewBag.RecentWorkOrders != null && ((List<IT15_Project.Models.WorkOrder>)ViewBag.RecentWorkOrders).Any())
+    {
+        @foreach (var wo in (List<IT15_Project.Models.WorkOrder>)ViewBag.RecentWorkOrders)
+        {
+            var statusClass = wo.Status?.ToLower() switch
+            {
+                "open" => "pending",
+                "in progress" => "inprog",
+                "completed" => "done",
+                _ => "pending"
+            };
+
+            var priorityClass = wo.Priority?.ToLower() switch
+            {
+                "high" => "high",
+                "medium" => "med",
+                "low" => "low",
+                _ => "med"
+            };
+
+            var progressPercentage = wo.Status == "Completed" ? 100 
+                : wo.Status == "In Progress" ? 50 
+                : 0;
+
+            <div class="wo-item">
+                <span class="wo-id">#WO-@wo.WorkOrderId.ToString("D4")</span>
+                <div class="wo-info">
+                    <div class="wo-name">@(wo.Asset?.AssetName ?? "N/A")</div>
+                    <div class="wo-meta">
+                        <span class="badge badge-@priorityClass" style="padding:2px 7px;font-size:11px;">@wo.Priority</span>
+                        &nbsp;·&nbsp;
+                        <span class="badge badge-@statusClass" style="padding:2px 7px;font-size:11px;">@wo.Status</span>
+                    </div>
+                </div>
+                <div class="wo-right">
+                    <div class="wo-pct">@progressPercentage%</div>
+                    <div class="wo-progress">
+                        <div class="wo-progress-bar"><div class="wo-progress-fill" style="width:@progressPercentage%"></div></div>
+                    </div>
+                    <small style="font-size:11px;color:var(--mx-muted)">
+                        @if (wo.DueDate.HasValue)
+                        {
+                            @:Due @wo.DueDate.Value.ToString("MMM dd")
+                        }
+                        else
+                        {
+                            @:No due date
+                        }
+                    </small>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div style="text-align:center;padding:40px;color:var(--mx-muted);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;margin:0 auto 16px;opacity:0.3;">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p>You don't have any assigned work orders yet.</p>
+        </div>
+    }
+</div>
+
+<!-- ROW 3 — QUICK ACTIONS -->
+<div class="card">
+    <div class="section-header">
+        <h2>Quick Actions</h2>
+    </div>
+    <div class="quick-grid">
+        <a href="/work-orders" class="quick-btn qb-navy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+            </svg>
+            View All Work Orders
+        </a>
+        <a href="/work-orders?status=open" class="quick-btn qb-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Open Work Orders
+        </a>
+        <a href="/work-orders?status=in-progress" class="quick-btn qb-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            In Progress
+        </a>
+        <a href="/work-orders?status=completed" class="quick-btn qb-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Completed
+        </a>
+    </div>
+</div>

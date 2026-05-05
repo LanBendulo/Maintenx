@@ -13,6 +13,17 @@ namespace IT15_Project.Models
         [Column("work_order_id")]
         public int WorkOrderId { get; set; }
 
+        [Column("company_id")]
+        [Required]
+        public int CompanyId { get; set; }
+
+        [Column("maintenance_request_id")]
+        public int? MaintenanceRequestId { get; set; }
+
+        [Column("source")]
+        [StringLength(50)]
+        public string? Source { get; set; } = "Manual";  // Request, Preventive, Manual
+
         [Column("asset_id")]
         public int? AssetId { get; set; }
 
@@ -45,9 +56,6 @@ namespace IT15_Project.Models
         [DataType(DataType.Date)]
         public DateTime? ActualCompletion { get; set; }
 
-        [Column("maintenance_request_id")]
-        public int? MaintenanceRequestId { get; set; }
-
         [Column("is_archived")]
         public bool IsArchived { get; set; } = false;
 
@@ -59,6 +67,9 @@ namespace IT15_Project.Models
         public string? ArchivedByUserId { get; set; }
 
         // Navigation properties
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
+
         [ForeignKey("AssetId")]
         public virtual Asset? Asset { get; set; }
 

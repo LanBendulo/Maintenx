@@ -1,0 +1,219 @@
+@model List<IT15_Project.Models.Asset>
+@{
+    ViewData["Title"] = "Assets";
+    ViewData["Active"] = "Assets";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+    var isOwnerOrAdmin = User.IsInRole("Owner") || User.IsInRole("Admin");
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Assets</h1>
+        <p>Manage equipment and assets</p>
+    </div>
+    @if (isOwnerOrAdmin)
+    {
+        <button class="btn-primary-mx" id="openAssetModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Add Asset
+        </button>
+    }
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count ?? 0)</div>
+        <div class="stat-label">Total Assets</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(a => a.Status == "Active") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(a => a.Status == "Active") ?? 0)</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <span class="stat-trend">● @(Model?.Count(a => a.Status == "Inactive") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(a => a.Status == "Inactive") ?? 0)</div>
+        <div class="stat-label">Inactive</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:400px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="asset-search" placeholder="Search name, code, location…" value="@ViewBag.Search" />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="all" selected="@(ViewBag.Status == "all")">All Status</option>
+            <option value="active" selected="@(ViewBag.Status == "active")">Active</option>
+            <option value="inactive" selected="@(ViewBag.Status == "inactive")">Inactive</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- ASSETS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>Asset List</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@(Model?.Count ?? 0)</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="assets-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="assets-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var asset in Model)
+                    {
+                        <tr>
+                            <td class="td-id">@(asset.AssetCode ?? "—")</td>
+                            <td class="td-equip">@asset.AssetName</td>
+                            <td>@(asset.Category?.CategoryName ?? "Uncategorized")</td>
+                            <td style="font-size:13px;color:var(--mx-muted)">@(asset.Location ?? "—")</td>
+                            <td><span class="badge badge-@(asset.Status == "Active" ? "done" : "cancelled")">@asset.Status</span></td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="/admin/assets/@asset.AssetId" class="action-view">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Details
+                                        </a>
+                                        @if (isOwnerOrAdmin)
+                                        {
+                                            <a href="#" class="action-edit" data-asset-id="@asset.AssetId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                Edit
+                                            </a>
+                                            <a href="#" class="action-toggle-status" data-asset-id="@asset.AssetId" data-status="@asset.Status">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                                @(asset.Status == "Active" ? "Deactivate" : "Activate")
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No assets found. Click "Add Asset" to create one.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST -->
+<div class="mx-toast-success" id="asset-toast">
+    <span class="toast-icon">✅</span>
+    <span id="toast-message">Action completed successfully!</span>
+</div>
+
+<!-- CREATE/EDIT ASSET MODAL -->
+<div class="mx-modal-overlay" id="assetModal" role="dialog" aria-modal="true">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="modal-title">Add Asset</div>
+                    <div class="modal-subtitle">Create a new asset</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeAssetModal">×</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="assetForm" novalidate>
+                <input type="hidden" id="asset-id" />
+
+                <div class="modal-section-label">Basic Information</div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Asset Name <span class="required">*</span></label>
+                        <input type="text" class="mx-input" id="asset-name" required />
+                        <div class="input-error" id="err-name">Please enter asset name.</div>
+                    </div>
+                    <div>
+                        <label class="mx-label">Asset Code</label>
+                        <input type="text" class="mx-input" id="asset-code" />
+                        <div class="input-hint">Unique identifier (optional)</div>
+                        <div class="input-error" id="err-code">Code already exists.</div>
+                    </div>
+                </div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Category</label>
+                        <select class="mx-select" id="asset-category">
+                            <option value="">Uncategorized</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mx-label">Location</label>
+                        <input type="text" class="mx-input" id="asset-location" />
+                    </div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Description</label>
+                    <textarea class="mx-textarea" id="asset-description"></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelAssetModal">Cancel</button>
+            <button class="btn-modal-submit" id="submitAssetForm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="submit-btn-text">Create Asset</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/assets.js" asp-append-version="true"></script>
+}

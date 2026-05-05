@@ -1,0 +1,473 @@
+@model IEnumerable<IT15_Project.Models.WorkOrder>
+
+@{
+    ViewData["Title"] = "My Work Orders";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Active"] = "WorkOrders";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>My Work Orders</h1>
+        <p>View and execute work orders assigned to you</p>
+    </div>
+</div>
+
+<!-- SUMMARY CARDS (TECHNICIAN-SCOPED) -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count() ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count() ?? 0)</div>
+        <div class="stat-label">Total Assigned</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend warn">● @(Model?.Count(w => w.Status == "Open") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(w => w.Status == "Open") ?? 0)</div>
+        <div class="stat-label">Open</div>
+    </div>
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(w => w.Status == "In Progress") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@(Model?.Count(w => w.Status == "In Progress") ?? 0)</div>
+        <div class="stat-label">In Progress</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(w => w.Status == "Completed") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(w => w.Status == "Completed") ?? 0)</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<!-- FILTER BAR (SIMPLIFIED FOR TECHNICIAN) -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="wo-search" placeholder="Search ID, equipment, description…" />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="">All Status</option>
+            <option value="open" selected="@(ViewBag.StatusFilter == "open" ? "selected" : null)">Open</option>
+            <option value="inprog" selected="@(ViewBag.StatusFilter == "in-progress" || ViewBag.StatusFilter == "inprogress" ? "selected" : null)">In Progress</option>
+            <option value="done" selected="@(ViewBag.StatusFilter == "completed" ? "selected" : null)">Completed</option>
+        </select>
+        <select class="filter-select" id="filter-priority">
+            <option value="">All Priority</option>
+            <option value="high">High</option>
+            <option value="med">Medium</option>
+            <option value="low">Low</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- WORK ORDERS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>My Assigned Work Orders</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@(Model?.Count() ?? 0)</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="wo-table">
+            <thead>
+                <tr>
+                    <th>WO ID</th>
+                    <th>Equipment / Asset</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Start Date</th>
+                    <th>Due Date</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="wo-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var wo in Model)
+                    {
+                        var statusClass = wo.Status?.ToLower() switch
+                        {
+                            "open" => "pending",
+                            "in progress" => "inprog",
+                            "completed" => "done",
+                            _ => "pending"
+                        };
+                        
+                        var priorityClass = wo.Priority?.ToLower() switch
+                        {
+                            "high" => "high",
+                            "medium" => "med",
+                            "low" => "low",
+                            _ => "med"
+                        };
+                        
+                        <tr data-status="@statusClass" data-priority="@priorityClass">
+                            <td class="td-id">#WO-@wo.WorkOrderId.ToString("D4")</td>
+                            <td class="td-equip">@(wo.Asset?.AssetName ?? "N/A")</td>
+                            <td>
+                                <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    @wo.Description
+                                </div>
+                            </td>
+                            <td><span class="badge-priority-@priorityClass">@wo.Priority</span></td>
+                            <td><span class="badge badge-@statusClass">@wo.Status</span></td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DateCreated?.ToString("MMM dd, yyyy") ?? "-")</td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "-")</td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="#" class="action-view-details" data-wo-id="@wo.WorkOrderId">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Details
+                                        </a>
+                                        @if (wo.Status == "Open")
+                                        {
+                                            <a href="#" class="action-start-work" data-wo-id="@wo.WorkOrderId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                                Start Work
+                                            </a>
+                                        }
+                                        @if (wo.Status == "In Progress")
+                                        {
+                                            <a href="#" class="action-complete-work" data-wo-id="@wo.WorkOrderId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                Mark Complete
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No work orders assigned to you.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST -->
+<div class="mx-toast-success" id="wo-toast">
+    <span class="toast-icon">✅</span>
+    <span id="toast-message">Action completed successfully!</span>
+</div>
+
+<!-- ═══════════════════════════════════
+     VIEW DETAILS MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woDetailsModal" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(43,126,212,.10);color:var(--mx-blue);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="details-modal-title">Work Order Details</div>
+                    <div class="modal-subtitle" id="details-modal-subtitle">#WO-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeDetailsModal" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" id="detailsModalBody" style="max-height:500px;overflow-y:auto;">
+            <div style="display:grid;gap:16px;">
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Equipment / Asset</label>
+                    <p id="details-asset" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Description</label>
+                    <p id="details-description" style="margin:4px 0 0;font-size:14px;line-height:1.6;">-</p>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Source</label>
+                        <p id="details-source" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Status</label>
+                        <p id="details-status" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Priority</label>
+                        <p id="details-priority" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Created By</label>
+                        <p id="details-created-by" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Start Date</label>
+                        <p id="details-start-date" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Due Date</label>
+                        <p id="details-due-date" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="closeDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function() {
+    // ── Filter: Status ──────────────────────────────
+    document.getElementById('filter-status').addEventListener('change', function() {
+        var status = this.value;
+        window.location.href = '/work-orders?status=' + (status === 'inprog' ? 'in-progress' : status === 'done' ? 'completed' : status);
+    });
+
+    // ── Filter: Search ──────────────────────────────
+    document.getElementById('wo-search').addEventListener('input', function() {
+        var searchTerm = this.value.toLowerCase();
+        var rows = document.querySelectorAll('#wo-tbody tr');
+        var visibleCount = 0;
+
+        rows.forEach(function(row) {
+            var text = row.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.querySelector('#row-count strong').textContent = visibleCount;
+    });
+
+    // ── Filter: Priority ────────────────────────────
+    document.getElementById('filter-priority').addEventListener('change', function() {
+        var priority = this.value;
+        var rows = document.querySelectorAll('#wo-tbody tr');
+        var visibleCount = 0;
+
+        rows.forEach(function(row) {
+            if (!priority || row.dataset.priority === priority) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.querySelector('#row-count strong').textContent = visibleCount;
+    });
+
+    // ── Reset Filters ───────────────────────────────
+    document.getElementById('reset-filters').addEventListener('click', function() {
+        document.getElementById('wo-search').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-priority').value = '';
+        
+        var rows = document.querySelectorAll('#wo-tbody tr');
+        rows.forEach(function(row) {
+            row.style.display = '';
+        });
+        
+        document.querySelector('#row-count strong').textContent = rows.length;
+    });
+
+    // ── Action Menu Toggle ──────────────────────────
+    document.querySelectorAll('.action-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var dropdown = this.nextElementSibling;
+            var isOpen = dropdown.classList.contains('show');
+            
+            // Close all dropdowns
+            document.querySelectorAll('.action-dropdown').forEach(function(d) {
+                d.classList.remove('show');
+            });
+            
+            // Toggle current dropdown
+            if (!isOpen) {
+                dropdown.classList.add('show');
+            }
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.action-dropdown').forEach(function(d) {
+            d.classList.remove('show');
+        });
+    });
+
+    // ── View Details ────────────────────────────────
+    document.querySelectorAll('.action-view-details').forEach(function(link) {
+        link.addEventListener('click', async function(e) {
+            e.preventDefault();
+            var woId = this.dataset.woId;
+            
+            try {
+                var response = await fetch('/dashboard/work-orders/' + woId);
+                var data = await response.json();
+                
+                if (data) {
+                    document.getElementById('details-modal-subtitle').textContent = '#WO-' + String(data.workOrderId).padStart(4, '0');
+                    document.getElementById('details-asset').textContent = data.assetName || 'N/A';
+                    document.getElementById('details-description').textContent = data.description || '-';
+                    document.getElementById('details-source').textContent = data.source || 'Manual';
+                    document.getElementById('details-status').textContent = data.status || '-';
+                    document.getElementById('details-priority').textContent = data.priority || '-';
+                    document.getElementById('details-created-by').textContent = data.createdBy || 'N/A';
+                    document.getElementById('details-start-date').textContent = data.dateCreated ? new Date(data.dateCreated).toLocaleDateString() : '-';
+                    document.getElementById('details-due-date').textContent = data.dueDate ? new Date(data.dueDate).toLocaleDateString() : '-';
+                    
+                    openModal('woDetailsModal');
+                }
+            } catch (error) {
+                showToast('Failed to load work order details', false);
+                console.error(error);
+            }
+        });
+    });
+
+    // ── Start Work ──────────────────────────────────
+    document.querySelectorAll('.action-start-work').forEach(function(link) {
+        link.addEventListener('click', async function(e) {
+            e.preventDefault();
+            var woId = this.dataset.woId;
+            
+            if (!confirm('Start work on this work order?')) {
+                return;
+            }
+            
+            try {
+                var response = await fetch('/dashboard/work-orders/start/' + woId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                var result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.message, true);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    showToast(result.message || 'Failed to start work', false);
+                }
+            } catch (error) {
+                showToast('An error occurred while starting work', false);
+                console.error(error);
+            }
+        });
+    });
+
+    // ── Complete Work ───────────────────────────────
+    document.querySelectorAll('.action-complete-work').forEach(function(link) {
+        link.addEventListener('click', async function(e) {
+            e.preventDefault();
+            var woId = this.dataset.woId;
+            
+            if (!confirm('Mark this work order as completed?')) {
+                return;
+            }
+            
+            try {
+                var response = await fetch('/dashboard/work-orders/complete/' + woId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                var result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.message, true);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    showToast(result.message || 'Failed to complete work', false);
+                }
+            } catch (error) {
+                showToast('An error occurred while completing work', false);
+                console.error(error);
+            }
+        });
+    });
+
+    // ── Modal Functions ─────────────────────────────
+    function openModal(id) {
+        document.getElementById(id).classList.add('show');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('show');
+    }
+
+    document.getElementById('closeDetailsModal').addEventListener('click', function() {
+        closeModal('woDetailsModal');
+    });
+
+    document.getElementById('closeDetailsBtn').addEventListener('click', function() {
+        closeModal('woDetailsModal');
+    });
+
+    // Close modal on outside click
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('mx-modal-overlay')) {
+            event.target.classList.remove('show');
+        }
+    });
+
+    // ── Toast Function ──────────────────────────────
+    function showToast(message, success) {
+        var toast = document.getElementById('wo-toast');
+        var messageEl = document.getElementById('toast-message');
+        
+        messageEl.textContent = message;
+        toast.style.borderLeftColor = success ? '#22C55E' : '#EF4444';
+        toast.querySelector('.toast-icon').textContent = success ? '✅' : '❌';
+        
+        toast.classList.add('show');
+        
+        setTimeout(function() {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+})();
+</script>
+}

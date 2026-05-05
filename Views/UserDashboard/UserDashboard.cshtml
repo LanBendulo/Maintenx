@@ -1,0 +1,182 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Active"] = "Dashboard";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<!-- ══════════════════════════════════════
+     USER DASHBOARD
+     Shows ONLY user's own maintenance requests
+════════════════════════════════════════ -->
+
+<!-- ROW 1 — SUMMARY CARDS (USER-SCOPED) -->
+<div class="stats-grid">
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.TotalRequests</span>
+        </div>
+        <div class="stat-value">@ViewBag.TotalRequests</div>
+        <div class="stat-label">Total Requests</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● @ViewBag.PendingCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@ViewBag.PendingCount</div>
+        <div class="stat-label">Pending</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.ApprovedCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@ViewBag.ApprovedCount</div>
+        <div class="stat-label">Approved</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.ConvertedCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@ViewBag.ConvertedCount</div>
+        <div class="stat-label">Converted to Work Orders</div>
+    </div>
+</div>
+
+<!-- ROW 2 — MY RECENT REQUESTS -->
+<div class="card">
+    <div class="section-header">
+        <h2>My Recent Requests</h2>
+        <a href="/userdashboard/maintenance-requests" class="view-all">View All</a>
+    </div>
+
+    @if (ViewBag.RecentRequests != null && ((List<IT15_Project.Models.MaintenanceRequest>)ViewBag.RecentRequests).Any())
+    {
+        <div style="overflow-x:auto;">
+            <table class="mx-table">
+                <thead>
+                    <tr>
+                        <th>Request #</th>
+                        <th>Title</th>
+                        <th>Asset</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Work Order Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mr in (List<IT15_Project.Models.MaintenanceRequest>)ViewBag.RecentRequests)
+                    {
+                        var statusClass = mr.Status?.ToLower() switch
+                        {
+                            "pending" => "pending",
+                            "approved" => "done",
+                            "rejected" => "cancelled",
+                            "converted" => "inprog",
+                            _ => "pending"
+                        };
+
+                        var priorityClass = mr.Priority?.ToLower() switch
+                        {
+                            "high" => "high",
+                            "medium" => "med",
+                            "low" => "low",
+                            _ => "med"
+                        };
+
+                        <tr>
+                            <td class="td-id">@mr.RequestNumber</td>
+                            <td>@mr.Title</td>
+                            <td class="td-equip">@(mr.Asset?.AssetName ?? "N/A")</td>
+                            <td><span class="badge-priority-@priorityClass">@mr.Priority</span></td>
+                            <td><span class="badge badge-@statusClass">@mr.Status</span></td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@mr.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                @if (mr.WorkOrder != null)
+                                {
+                                    var woStatusClass = mr.WorkOrder.Status?.ToLower() switch
+                                    {
+                                        "open" => "pending",
+                                        "in progress" => "inprog",
+                                        "completed" => "done",
+                                        _ => "pending"
+                                    };
+                                    <span class="badge badge-@woStatusClass">@mr.WorkOrder.Status</span>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);font-size:12px;">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center;padding:40px;color:var(--mx-muted);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;margin:0 auto 16px;opacity:0.3;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <p>You haven't submitted any maintenance requests yet.</p>
+        </div>
+    }
+</div>
+
+<!-- ROW 3 — QUICK ACTIONS -->
+<div class="card" style="margin-top:20px;">
+    <div class="section-header">
+        <h2>Quick Actions</h2>
+    </div>
+    <div class="quick-grid">
+        <a href="/admin/maintenance-requests" class="quick-btn qb-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Submit New Request
+        </a>
+        <a href="/userdashboard/maintenance-requests" class="quick-btn qb-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            View All My Requests
+        </a>
+        <a href="/userdashboard/maintenance-requests?status=pending" class="quick-btn qb-navy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Pending Requests
+        </a>
+        <a href="/userdashboard/maintenance-requests?status=converted" class="quick-btn qb-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Converted Requests
+        </a>
+    </div>
+</div>

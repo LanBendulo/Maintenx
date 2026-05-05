@@ -13,6 +13,10 @@ namespace IT15_Project.Models
         [Column("request_id")]
         public int RequestId { get; set; }
 
+        [Column("company_id")]
+        [Required]
+        public int CompanyId { get; set; }
+
         [Column("request_number")]
         [StringLength(50)]
         [Required]
@@ -73,6 +77,9 @@ namespace IT15_Project.Models
         public string? ArchivedByUserId { get; set; }
 
         // Navigation properties
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
+
         [ForeignKey("AssetId")]
         public virtual Asset? Asset { get; set; }
 

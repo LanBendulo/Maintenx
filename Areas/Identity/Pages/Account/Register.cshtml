@@ -85,6 +85,44 @@
             <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
                 @Html.AntiForgeryToken()
 
+                <!-- Company Name -->
+                <div class="mx-field">
+                    <label asp-for="Input.CompanyName">Company Name</label>
+                    <div class="mx-input-wrap">
+                        <span class="input-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                        </span>
+                        <input asp-for="Input.CompanyName"
+                               type="text"
+                               id="reg-company"
+                               autocomplete="organization"
+                               aria-required="true"
+                               placeholder="Your Company Name" />
+                    </div>
+                    <span asp-validation-for="Input.CompanyName" class="field-error"></span>
+                </div>
+
+                <!-- Full Name -->
+                <div class="mx-field">
+                    <label asp-for="Input.FullName">Full Name</label>
+                    <div class="mx-input-wrap">
+                        <span class="input-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </span>
+                        <input asp-for="Input.FullName"
+                               type="text"
+                               id="reg-fullname"
+                               autocomplete="name"
+                               aria-required="true"
+                               placeholder="John Doe" />
+                    </div>
+                    <span asp-validation-for="Input.FullName" class="field-error"></span>
+                </div>
+
                 <!-- Email -->
                 <div class="mx-field">
                     <label asp-for="Input.Email">Email Address</label>
