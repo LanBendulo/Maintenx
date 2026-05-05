@@ -33,6 +33,9 @@ builder.Services.AddHttpContextAccessor();
 
 // Register TenantService for company isolation
 builder.Services.AddScoped<ITenantService, TenantService>();
+
+// Register CostService for Work Order cost tracking
+builder.Services.AddScoped<ICostService, CostService>();
 // ============================================================
 
 // Identity with Roles support using ApplicationUser

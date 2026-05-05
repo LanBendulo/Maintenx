@@ -249,12 +249,24 @@ namespace IT15_Project.Data
 
             // Configure WorkOrderPart relationships
             builder.Entity<WorkOrderPart>()
+                .HasOne(wop => wop.Company)
+                .WithMany()
+                .HasForeignKey(wop => wop.CompanyId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<WorkOrderPart>()
                 .HasOne(wop => wop.WorkOrder)
                 .WithMany()
                 .HasForeignKey(wop => wop.WorkOrderId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure WorkOrderCost relationships
+            builder.Entity<WorkOrderCost>()
+                .HasOne(woc => woc.Company)
+                .WithMany()
+                .HasForeignKey(woc => woc.CompanyId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             builder.Entity<WorkOrderCost>()
                 .HasOne(woc => woc.WorkOrder)
                 .WithMany()

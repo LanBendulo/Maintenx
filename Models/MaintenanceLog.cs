@@ -39,6 +39,19 @@ namespace IT15_Project.Models
         [Column("notes")]
         public string? Notes { get; set; }
 
+        // Cost tracking (snapshot from WorkOrderCost)
+        [Column("labor_cost", TypeName = "decimal(10,2)")]
+        public decimal? LaborCost { get; set; }
+
+        [Column("parts_cost", TypeName = "decimal(10,2)")]
+        public decimal? PartsCost { get; set; }
+
+        [Column("other_cost", TypeName = "decimal(10,2)")]
+        public decimal? OtherCost { get; set; }
+
+        [Column("total_cost", TypeName = "decimal(10,2)")]
+        public decimal? TotalCost { get; set; }
+
         [Required]
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }

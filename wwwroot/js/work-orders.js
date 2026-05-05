@@ -564,9 +564,6 @@
         }
     });
 
-})();
-
-
     // ========================================
     // VIEW DETAILS ACTION
     // ========================================
@@ -594,6 +591,12 @@
                 document.getElementById('details-start-date').textContent = wo.dateCreated ? new Date(wo.dateCreated).toLocaleDateString() : 'N/A';
                 document.getElementById('details-due-date').textContent = wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : 'N/A';
                 
+                // Populate cost data
+                loadCostData(wo);
+                
+                // Load parts used
+                loadPartsUsed(woId, wo.status);
+                
                 // Show modal
                 document.getElementById('woDetailsModal').classList.add('open');
                 document.body.style.overflow = 'hidden';
@@ -612,6 +615,154 @@
     
     document.getElementById('closeDetailsModal')?.addEventListener('click', closeDetailsModal);
     document.getElementById('closeDetailsBtn')?.addEventListener('click', closeDetailsModal);
+
+    // ========================================
+    // COST TRACKING FUNCTIONALITY
+    // ========================================
+    
+    // Global variable to store current parts cost
+    let currentPartsCost = 0;
+    
+    /**
+     * Load and populate cost data in the details modal
+     */
+    function loadCostData(wo) {
+        console.log('Loading cost data:', wo);
+        
+        // Store work order ID and status in hidden fields
+        document.getElementById('cost-work-order-id').value = wo.workOrderId;
+        document.getElementById('cost-status').value = wo.status;
+        
+        // Store parts cost in global variable
+        currentPartsCost = wo.partsCost || 0;
+        
+        // Populate cost fields with currency formatting
+        document.getElementById('cost-parts').textContent = formatCurrency(currentPartsCost);
+        document.getElementById('cost-labor').value = wo.laborCost || 0;
+        document.getElementById('cost-other').value = wo.otherCost || 0;
+        document.getElementById('cost-total').textContent = formatCurrency(wo.totalCost || 0);
+        
+        // Check if work order is completed - lock inputs
+        const isCompleted = wo.status === 'Completed' || wo.status === 'Cancelled';
+        const laborInput = document.getElementById('cost-labor');
+        const otherInput = document.getElementById('cost-other');
+        const saveBtn = document.getElementById('saveCostBtn');
+        const lockedMessage = document.getElementById('cost-locked-message');
+        
+        if (isCompleted) {
+            // Disable inputs
+            laborInput.disabled = true;
+            otherInput.disabled = true;
+            laborInput.style.background = '#F0F4F8';
+            laborInput.style.cursor = 'not-allowed';
+            otherInput.style.background = '#F0F4F8';
+            otherInput.style.cursor = 'not-allowed';
+            
+            // Hide save button and show locked message
+            saveBtn.style.display = 'none';
+            lockedMessage.style.display = 'block';
+        } else {
+            // Enable inputs
+            laborInput.disabled = false;
+            otherInput.disabled = false;
+            laborInput.style.background = '';
+            laborInput.style.cursor = '';
+            otherInput.style.background = '';
+            otherInput.style.cursor = '';
+            
+            // Show save button and hide locked message
+            saveBtn.style.display = 'block';
+            lockedMessage.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Format number as currency (Philippine Peso)
+     */
+    function formatCurrency(amount) {
+        return '₱ ' + parseFloat(amount).toLocaleString('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    /**
+     * Calculate total cost in real-time
+     */
+    function calculateTotalCost() {
+        const laborCost = parseFloat(document.getElementById('cost-labor').value) || 0;
+        const otherCost = parseFloat(document.getElementById('cost-other').value) || 0;
+        
+        // Use global currentPartsCost variable
+        const totalCost = currentPartsCost + laborCost + otherCost;
+        document.getElementById('cost-total').textContent = formatCurrency(totalCost);
+    }
+    
+    // Add event listeners for real-time calculation
+    document.getElementById('cost-labor')?.addEventListener('input', calculateTotalCost);
+    document.getElementById('cost-other')?.addEventListener('input', calculateTotalCost);
+    
+    /**
+     * Save cost updates
+     */
+    document.getElementById('saveCostBtn')?.addEventListener('click', async function(e) {
+        e.preventDefault();
+        
+        const woId = document.getElementById('cost-work-order-id').value;
+        const laborCost = parseFloat(document.getElementById('cost-labor').value) || 0;
+        const otherCost = parseFloat(document.getElementById('cost-other').value) || 0;
+        
+        // Validation
+        if (laborCost < 0 || otherCost < 0) {
+            showToast('Costs cannot be negative', 'error');
+            return;
+        }
+        
+        const costData = {
+            LaborCost: laborCost,
+            OtherCost: otherCost
+        };
+        
+        console.log('Saving cost data:', costData);
+        
+        // Disable button
+        const saveBtn = document.getElementById('saveCostBtn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg> Saving...';
+        
+        try {
+            const response = await fetch(`/admin/work-orders/${woId}/update-cost`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(costData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                // Update global parts cost variable
+                currentPartsCost = result.partsCost || 0;
+                
+                // Update displayed values with server response
+                document.getElementById('cost-parts').textContent = formatCurrency(result.partsCost || 0);
+                document.getElementById('cost-total').textContent = formatCurrency(result.totalCost || 0);
+                
+                showToast(result.message || 'Cost updated successfully!', 'success');
+            } else {
+                console.error('Server error:', result);
+                showToast(result.message || 'Failed to update cost', 'error');
+            }
+        } catch (error) {
+            console.error('Error updating cost:', error);
+            showToast('An error occurred while updating cost', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
 
     // ========================================
     // EDIT ACTION
@@ -1097,3 +1248,321 @@
         }
     });
 
+
+    // ========================================
+    // PARTS USED FUNCTIONALITY
+    // ========================================
+
+    /**
+     * Load parts used in a work order
+     */
+    async function loadPartsUsed(workOrderId, status) {
+        try {
+            const response = await fetch(`/admin/work-orders/${workOrderId}/parts`);
+            if (!response.ok) throw new Error('Failed to load parts');
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                displayPartsUsed(result.parts, result.totalPartsCost, status);
+            }
+        } catch (error) {
+            console.error('Error loading parts:', error);
+            showToast('Failed to load parts used', 'error');
+        }
+    }
+
+    /**
+     * Display parts used in the table
+     */
+    function displayPartsUsed(parts, totalPartsCost, status) {
+        const tbody = document.getElementById('parts-used-tbody');
+        const noPartsRow = document.getElementById('no-parts-row');
+        const addPartBtn = document.getElementById('addPartBtn');
+        
+        // Clear existing rows except the "no parts" row
+        const existingRows = tbody.querySelectorAll('tr:not(#no-parts-row)');
+        existingRows.forEach(row => row.remove());
+        
+        if (parts.length === 0) {
+            noPartsRow.style.display = '';
+        } else {
+            noPartsRow.style.display = 'none';
+            
+            parts.forEach(part => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${part.partName}</td>
+                    <td style="color:var(--mx-muted);font-size:13px;">${part.partNumber || '-'}</td>
+                    <td style="text-align:right;font-weight:600;">${part.quantityUsed}</td>
+                    <td style="text-align:right;color:var(--mx-primary);">${formatCurrency(part.unitCostSnapshot)}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--mx-green);">${formatCurrency(part.totalCost)}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-remove-part" data-part-id="${part.id}" style="padding:4px 8px;font-size:12px;background:#DC3545;color:white;border:none;border-radius:4px;cursor:pointer;">
+                            Remove
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Update Parts Used section total
+        document.getElementById('parts-used-total').textContent = formatCurrency(totalPartsCost);
+        
+        // Update global parts cost variable
+        currentPartsCost = totalPartsCost;
+        
+        // Update Cost Breakdown section - Parts Cost field
+        document.getElementById('cost-parts').textContent = formatCurrency(totalPartsCost);
+        
+        // Recalculate total cost
+        calculateTotalCost();
+        
+        // Disable add/remove if completed or cancelled
+        const isCompleted = status === 'Completed' || status === 'Cancelled';
+        if (isCompleted) {
+            addPartBtn.style.display = 'none';
+            document.querySelectorAll('.btn-remove-part').forEach(btn => {
+                btn.style.display = 'none';
+            });
+        } else {
+            addPartBtn.style.display = 'inline-flex';
+        }
+    }
+
+    /**
+     * Open Add Part modal
+     */
+    document.getElementById('addPartBtn')?.addEventListener('click', async function() {
+        const woId = document.getElementById('cost-work-order-id').value;
+        
+        if (!woId) {
+            showToast('Work order ID not found', 'error');
+            return;
+        }
+        
+        // Store work order ID
+        document.getElementById('add-part-work-order-id').value = woId;
+        
+        // Load available parts
+        await loadAvailableParts();
+        
+        // Reset form
+        document.getElementById('addPartForm').reset();
+        document.getElementById('part-info-display').style.display = 'none';
+        document.getElementById('add-part-hint-quantity').style.display = 'none';
+        document.getElementById('add-part-estimated-cost').textContent = '₱ 0.00';
+        
+        // Open modal
+        document.getElementById('addPartModal').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    });
+
+    /**
+     * Load available parts from inventory
+     */
+    async function loadAvailableParts() {
+        try {
+            const response = await fetch('/admin/parts/available');
+            if (!response.ok) throw new Error('Failed to load parts');
+            
+            const parts = await response.json();
+            const select = document.getElementById('add-part-select');
+            
+            // Store parts data for later use
+            select.dataset.partsData = JSON.stringify(parts);
+            
+            // Clear and populate dropdown
+            select.innerHTML = '<option value="">Select part…</option>';
+            
+            if (parts.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No parts available in inventory';
+                option.disabled = true;
+                select.appendChild(option);
+            } else {
+                parts.forEach(part => {
+                    const option = document.createElement('option');
+                    option.value = part.value;
+                    option.textContent = part.text;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading parts:', error);
+            showToast('Failed to load parts list', 'error');
+        }
+    }
+
+    /**
+     * Handle part selection change
+     */
+    document.getElementById('add-part-select')?.addEventListener('change', function() {
+        const partId = this.value;
+        const partsData = JSON.parse(this.dataset.partsData || '[]');
+        const selectedPart = partsData.find(p => p.value == partId);
+        
+        if (selectedPart) {
+            // Show part info
+            document.getElementById('part-info-display').style.display = 'block';
+            document.getElementById('part-available-qty').textContent = selectedPart.availableQuantity;
+            document.getElementById('part-unit-cost').textContent = formatCurrency(selectedPart.unitCost);
+            document.getElementById('part-location').textContent = selectedPart.location || '-';
+            
+            // Show quantity hint
+            document.getElementById('add-part-hint-quantity').style.display = 'block';
+            document.getElementById('add-part-max-qty').textContent = selectedPart.availableQuantity;
+            
+            // Set max quantity
+            document.getElementById('add-part-quantity').max = selectedPart.availableQuantity;
+            
+            // Store unit cost for calculation
+            document.getElementById('add-part-quantity').dataset.unitCost = selectedPart.unitCost;
+            
+            // Reset quantity
+            document.getElementById('add-part-quantity').value = '';
+            document.getElementById('add-part-estimated-cost').textContent = '₱ 0.00';
+        } else {
+            document.getElementById('part-info-display').style.display = 'none';
+            document.getElementById('add-part-hint-quantity').style.display = 'none';
+        }
+    });
+
+    /**
+     * Calculate estimated cost as user types quantity
+     */
+    document.getElementById('add-part-quantity')?.addEventListener('input', function() {
+        const quantity = parseFloat(this.value) || 0;
+        const unitCost = parseFloat(this.dataset.unitCost) || 0;
+        const estimatedCost = quantity * unitCost;
+        
+        document.getElementById('add-part-estimated-cost').textContent = formatCurrency(estimatedCost);
+    });
+
+    /**
+     * Close Add Part modal
+     */
+    const closeAddPartModal = () => {
+        document.getElementById('addPartModal').classList.remove('open');
+        document.body.style.overflow = '';
+        document.getElementById('addPartForm').reset();
+    };
+    
+    document.getElementById('closeAddPartModal')?.addEventListener('click', closeAddPartModal);
+    document.getElementById('cancelAddPartModal')?.addEventListener('click', closeAddPartModal);
+
+    /**
+     * Save Add Part form
+     */
+    document.getElementById('saveAddPartForm')?.addEventListener('click', async function(e) {
+        e.preventDefault();
+        
+        const woId = document.getElementById('add-part-work-order-id').value;
+        const partId = document.getElementById('add-part-select').value;
+        const quantity = parseInt(document.getElementById('add-part-quantity').value);
+        const maxQty = parseInt(document.getElementById('add-part-quantity').max);
+        
+        // Validation
+        if (!partId) {
+            showToast('Please select a part', 'error');
+            return;
+        }
+        
+        if (!quantity || quantity <= 0) {
+            showToast('Please enter a valid quantity', 'error');
+            return;
+        }
+        
+        if (quantity > maxQty) {
+            showToast(`Quantity exceeds available stock (${maxQty})`, 'error');
+            return;
+        }
+        
+        const partData = {
+            PartId: parseInt(partId),
+            QuantityUsed: quantity
+        };
+        
+        console.log('Adding part:', partData);
+        
+        // Disable button
+        const saveBtn = document.getElementById('saveAddPartForm');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg> Adding...';
+        
+        try {
+            const response = await fetch(`/admin/work-orders/${woId}/add-part`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(partData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                closeAddPartModal();
+                showToast(result.message || 'Part added successfully!', 'success');
+                
+                // Reload parts used (this will update global variable and recalculate)
+                const status = document.getElementById('cost-status').value;
+                await loadPartsUsed(woId, status);
+            } else {
+                console.error('Server error:', result);
+                showToast(result.message || 'Failed to add part', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding part:', error);
+            showToast('An error occurred while adding part', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
+
+    /**
+     * Handle remove part button clicks
+     */
+    document.addEventListener('click', async function(e) {
+        if (e.target.closest('.btn-remove-part')) {
+            const btn = e.target.closest('.btn-remove-part');
+            const workOrderPartId = btn.getAttribute('data-part-id');
+            const woId = document.getElementById('cost-work-order-id').value;
+            
+            if (!confirm('Are you sure you want to remove this part? The quantity will be restored to inventory.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/work-orders/${woId}/remove-part`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ WorkOrderPartId: parseInt(workOrderPartId) })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showToast(result.message || 'Part removed successfully!', 'success');
+                    
+                    // Reload parts used (this will update global variable and recalculate)
+                    const status = document.getElementById('cost-status').value;
+                    await loadPartsUsed(woId, status);
+                } else {
+                    console.error('Server error:', result);
+                    showToast(result.message || 'Failed to remove part', 'error');
+                }
+            } catch (error) {
+                console.error('Error removing part:', error);
+                showToast('An error occurred while removing part', 'error');
+            }
+        }
+    });
+
+})();

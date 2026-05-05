@@ -22,21 +22,197 @@ namespace IT15_Project.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITenantService _tenantService;
+        private readonly ICostService _costService;
 
         public DashboardController(
             ApplicationDbContext context, 
             UserManager<ApplicationUser> userManager,
-            ITenantService tenantService)
+            ITenantService tenantService,
+            ICostService costService)
         {
             _context = context;
             _userManager = userManager;
             _tenantService = tenantService;
+            _costService = costService;
         }
 
         [Route("dashboard")]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View("~/Views/Dashboard/Index.cshtml");
+            try
+            {
+                // TENANT-AWARE: Get current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                var viewModel = new AdminDashboardViewModel();
+
+                // ========================================
+                // A. SUMMARY CARDS
+                // ========================================
+                
+                // Total Maintenance Requests
+                viewModel.TotalRequests = await _context.MaintenanceRequests
+                    .AsNoTracking()
+                    .Where(mr => mr.CompanyId == companyId)
+                    .CountAsync();
+
+                // Pending Requests
+                viewModel.PendingRequests = await _context.MaintenanceRequests
+                    .AsNoTracking()
+                    .Where(mr => mr.CompanyId == companyId && mr.Status == "Pending")
+                    .CountAsync();
+
+                // Active Work Orders (Open or In Progress)
+                viewModel.ActiveWorkOrders = await _context.WorkOrders
+                    .AsNoTracking()
+                    .Where(wo => wo.CompanyId == companyId && 
+                                (wo.Status == "Open" || wo.Status == "In Progress"))
+                    .CountAsync();
+
+                // Total Assets
+                viewModel.TotalAssets = await _context.Assets
+                    .AsNoTracking()
+                    .Where(a => a.CompanyId == companyId && a.Status != "Retired")
+                    .CountAsync();
+
+                // ========================================
+                // B. REQUEST STATUS CHART
+                // ========================================
+                
+                var requestsByStatus = await _context.MaintenanceRequests
+                    .AsNoTracking()
+                    .Where(mr => mr.CompanyId == companyId)
+                    .GroupBy(mr => mr.Status)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                viewModel.RequestStatusCounts = requestsByStatus.ToDictionary(
+                    x => x.Status ?? "Unknown",
+                    x => x.Count
+                );
+
+                // Ensure all statuses are present (even if 0)
+                var allStatuses = new[] { "Pending", "Approved", "Rejected", "Converted" };
+                foreach (var status in allStatuses)
+                {
+                    if (!viewModel.RequestStatusCounts.ContainsKey(status))
+                    {
+                        viewModel.RequestStatusCounts[status] = 0;
+                    }
+                }
+
+                // ========================================
+                // C. ONGOING WORK ORDERS
+                // ========================================
+                
+                viewModel.OngoingWorkOrders = await _context.WorkOrders
+                    .AsNoTracking()
+                    .Where(wo => wo.CompanyId == companyId && 
+                                (wo.Status == "Open" || wo.Status == "In Progress"))
+                    .OrderByDescending(wo => wo.Priority == "High" ? 3 : wo.Priority == "Medium" ? 2 : 1)
+                    .ThenByDescending(wo => wo.DateCreated)
+                    .Take(10)
+                    .Select(wo => new OngoingWorkOrderDto
+                    {
+                        WorkOrderId = wo.WorkOrderId,
+                        WorkOrderNumber = $"WO-{wo.WorkOrderId.ToString().PadLeft(4, '0')}",
+                        AssetName = wo.Asset != null ? wo.Asset.AssetName : "N/A",
+                        TechnicianName = wo.AssignedToPersonnel != null ? wo.AssignedToPersonnel.FullName : "Unassigned",
+                        Priority = wo.Priority ?? "Medium",
+                        Status = wo.Status ?? "Open",
+                        DueDate = wo.DueDate,
+                        ProgressPercentage = wo.Status == "In Progress" ? 50 : 0
+                    })
+                    .ToListAsync();
+
+                // ========================================
+                // D. ACTIVE ALERTS
+                // ========================================
+                
+                var alerts = new List<DashboardAlertDto>();
+
+                // 1. Overdue Work Orders
+                var overdueWorkOrders = await _context.WorkOrders
+                    .AsNoTracking()
+                    .Where(wo => wo.CompanyId == companyId &&
+                                wo.DueDate.HasValue &&
+                                wo.DueDate.Value < DateTime.Now &&
+                                wo.Status != "Completed" &&
+                                wo.Status != "Cancelled")
+                    .OrderBy(wo => wo.DueDate)
+                    .Take(5)
+                    .Select(wo => new DashboardAlertDto
+                    {
+                        Type = "overdue",
+                        Title = $"Overdue Work Order #{wo.WorkOrderId}",
+                        Description = $"Work order for {(wo.Asset != null ? wo.Asset.AssetName : "Unknown Asset")} is overdue",
+                        DueDate = wo.DueDate,
+                        AssetOrLocation = wo.Asset != null ? wo.Asset.AssetName : "N/A",
+                        Severity = "high"
+                    })
+                    .ToListAsync();
+
+                alerts.AddRange(overdueWorkOrders);
+
+                // 2. Upcoming Preventive Maintenance (next 7 days)
+                var upcomingPM = await _context.PreventiveSchedules
+                    .AsNoTracking()
+                    .Where(ps => ps.CompanyId == companyId &&
+                                ps.IsActive &&
+                                ps.NextDueDate >= DateTime.Now &&
+                                ps.NextDueDate <= DateTime.Now.AddDays(7))
+                    .OrderBy(ps => ps.NextDueDate)
+                    .Take(5)
+                    .Select(ps => new DashboardAlertDto
+                    {
+                        Type = "upcoming-pm",
+                        Title = $"Upcoming PM: {ps.Title}",
+                        Description = $"Preventive maintenance due for {(ps.Asset != null ? ps.Asset.AssetName : "Unknown Asset")}",
+                        DueDate = ps.NextDueDate,
+                        AssetOrLocation = ps.Asset != null ? ps.Asset.AssetName : "N/A",
+                        Severity = "medium"
+                    })
+                    .ToListAsync();
+
+                alerts.AddRange(upcomingPM);
+
+                // 3. Low Stock Parts
+                var lowStockParts = await _context.Parts
+                    .AsNoTracking()
+                    .Where(p => p.CompanyId == companyId &&
+                               p.IsActive &&
+                               p.ReorderLevel.HasValue &&
+                               p.Quantity <= p.ReorderLevel.Value)
+                    .OrderBy(p => p.Quantity)
+                    .Take(3)
+                    .Select(p => new DashboardAlertDto
+                    {
+                        Type = "low-stock",
+                        Title = $"Low Stock: {p.PartName}",
+                        Description = $"Only {p.Quantity} units remaining (reorder at {p.ReorderLevel})",
+                        DueDate = null,
+                        AssetOrLocation = p.Location ?? "Inventory",
+                        Severity = p.Quantity == 0 ? "high" : "medium"
+                    })
+                    .ToListAsync();
+
+                alerts.AddRange(lowStockParts);
+
+                // Sort alerts by severity and take top 10
+                viewModel.Alerts = alerts
+                    .OrderByDescending(a => a.Severity == "high" ? 3 : a.Severity == "medium" ? 2 : 1)
+                    .ThenBy(a => a.DueDate)
+                    .Take(10)
+                    .ToList();
+
+                return View("~/Views/Dashboard/Index.cshtml", viewModel);
+            }
+            catch (Exception ex)
+            {
+                // Log error and return empty view model
+                Console.WriteLine($"Error loading dashboard: {ex.Message}");
+                return View("~/Views/Dashboard/Index.cshtml", new AdminDashboardViewModel());
+            }
         }
 
         // Diagnostic endpoint to test database connection
@@ -381,6 +557,9 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Work order not found." });
                 }
 
+                // Get or create cost record
+                var cost = await _costService.GetOrCreateWorkOrderCostAsync(id, companyId);
+
                 var result = new
                 {
                     workOrderId = workOrder.WorkOrderId,
@@ -397,7 +576,12 @@ namespace IT15_Project.Controllers
                     source = workOrder.MaintenanceRequestId.HasValue 
                         ? $"Request #{workOrder.MaintenanceRequest?.RequestNumber}" 
                         : "Manual",
-                    maintenanceRequestId = workOrder.MaintenanceRequestId
+                    maintenanceRequestId = workOrder.MaintenanceRequestId,
+                    // Cost data
+                    laborCost = cost.LaborCost ?? 0,
+                    partsCost = cost.PartsCost ?? 0,
+                    otherCost = cost.OtherCost ?? 0,
+                    totalCost = cost.TotalCost ?? 0
                 };
 
                 return Ok(result);
@@ -405,6 +589,66 @@ namespace IT15_Project.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Update Work Order costs (labor and other)
+        /// Only allowed when status is Open or InProgress
+        /// </summary>
+        [HttpPost]
+        [Route("work-orders/{id}/update-cost")]
+        public async Task<IActionResult> UpdateWorkOrderCost(int id, [FromBody] UpdateCostRequest request)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Validate work order exists and belongs to tenant
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);
+
+                if (workOrder == null)
+                {
+                    return NotFound(new { success = false, message = "Work order not found." });
+                }
+
+                // Validate costs
+                if (request.LaborCost < 0 || request.OtherCost < 0)
+                {
+                    return BadRequest(new { success = false, message = "Costs cannot be negative." });
+                }
+
+                // Update costs using service
+                var success = await _costService.UpdateCostsAsync(id, companyId, request.LaborCost, request.OtherCost);
+
+                if (!success)
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "Cannot update costs. Work order must be Open or In Progress." 
+                    });
+                }
+
+                // Get updated cost
+                var cost = await _costService.GetOrCreateWorkOrderCostAsync(id, companyId);
+
+                return Ok(new { 
+                    success = true, 
+                    message = "Cost updated successfully!",
+                    laborCost = cost.LaborCost,
+                    partsCost = cost.PartsCost,
+                    otherCost = cost.OtherCost,
+                    totalCost = cost.TotalCost
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    success = false, 
+                    message = "An error occurred while updating cost.", 
+                    error = ex.Message 
+                });
             }
         }
 
@@ -467,6 +711,9 @@ namespace IT15_Project.Controllers
                     }
                     workOrder.ActualCompletion = request.ActualCompletion.Value;
 
+                    // LOCK COSTS (recalculate and finalize)
+                    var finalCost = await _costService.LockCostsAsync(workOrder.WorkOrderId, companyId);
+
                     // AUTO-CREATE MAINTENANCE LOG
                     // Check if log already exists (idempotent)
                     var logExists = await _context.MaintenanceLogs
@@ -484,6 +731,11 @@ namespace IT15_Project.Controllers
                             CompletedByPersonnelId = workOrder.AssignedTo,
                             CompletedDate = request.ActualCompletion.Value,
                             Notes = request.Notes,
+                            // Cost snapshot
+                            LaborCost = finalCost.LaborCost,
+                            PartsCost = finalCost.PartsCost,
+                            OtherCost = finalCost.OtherCost,
+                            TotalCost = finalCost.TotalCost,
                             CreatedAt = DateTime.Now
                         };
 
@@ -715,6 +967,281 @@ namespace IT15_Project.Controllers
                 return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
             }
         }
+
+        // ========================================
+        // PARTS MANAGEMENT ENDPOINTS
+        // ========================================
+
+        /// <summary>
+        /// Get all parts used in a work order
+        /// </summary>
+        [HttpGet]
+        [Route("work-orders/{id}/parts")]
+        public async Task<IActionResult> GetWorkOrderParts(int id)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Validate work order exists and belongs to tenant
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);
+
+                if (workOrder == null)
+                {
+                    return NotFound(new { success = false, message = "Work order not found." });
+                }
+
+                // Get parts used
+                var parts = await _context.WorkOrderParts
+                    .Where(wop => wop.WorkOrderId == id && wop.CompanyId == companyId)
+                    .Include(wop => wop.Part)
+                    .Select(wop => new
+                    {
+                        id = wop.Id,
+                        partId = wop.PartId,
+                        partName = wop.Part!.PartName,
+                        partNumber = wop.Part.PartNumber,
+                        quantityUsed = wop.QuantityUsed,
+                        unitCostSnapshot = wop.UnitCost ?? 0,
+                        totalCost = wop.QuantityUsed * (wop.UnitCost ?? 0)
+                    })
+                    .ToListAsync();
+
+                // Calculate total parts cost
+                var totalPartsCost = parts.Sum(p => p.totalCost);
+
+                return Ok(new
+                {
+                    success = true,
+                    parts = parts,
+                    totalPartsCost = totalPartsCost
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while loading parts.",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Add a part to a work order
+        /// Deducts from inventory and snapshots unit cost
+        /// </summary>
+        [HttpPost]
+        [Route("work-orders/{id}/add-part")]
+        public async Task<IActionResult> AddPartToWorkOrder(int id, [FromBody] AddPartRequest request)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Validate work order exists and belongs to tenant
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);
+
+                if (workOrder == null)
+                {
+                    return NotFound(new { success = false, message = "Work order not found." });
+                }
+
+                // Cannot add parts to completed or cancelled work orders
+                if (workOrder.Status == "Completed" || workOrder.Status == "Cancelled")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Cannot add parts to completed or cancelled work orders."
+                    });
+                }
+
+                // Validate part exists and belongs to tenant
+                var part = await _context.Parts
+                    .FirstOrDefaultAsync(p => p.PartId == request.PartId && p.CompanyId == companyId);
+
+                if (part == null)
+                {
+                    return NotFound(new { success = false, message = "Part not found." });
+                }
+
+                // Validate quantity
+                if (request.QuantityUsed <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Quantity must be greater than 0." });
+                }
+
+                // Validate stock availability
+                if (part.Quantity < request.QuantityUsed)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Insufficient stock. Available: {part.Quantity}, Requested: {request.QuantityUsed}"
+                    });
+                }
+
+                // Create WorkOrderPart entry with unit cost snapshot
+                var workOrderPart = new WorkOrderPart
+                {
+                    CompanyId = companyId,
+                    WorkOrderId = id,
+                    PartId = request.PartId,
+                    QuantityUsed = request.QuantityUsed,
+                    UnitCost = part.UnitCost ?? 0, // Snapshot current unit cost
+                    TotalCost = request.QuantityUsed * (part.UnitCost ?? 0),
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.WorkOrderParts.Add(workOrderPart);
+
+                // Deduct from inventory
+                part.Quantity -= request.QuantityUsed;
+                part.UpdatedAt = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+
+                // Recalculate parts cost using CostService
+                var updatedCost = await _costService.GetOrCreateWorkOrderCostAsync(id, companyId);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Part added successfully!",
+                    workOrderPartId = workOrderPart.Id,
+                    partsCost = updatedCost.PartsCost,
+                    totalCost = updatedCost.TotalCost
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while adding part.",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Remove a part from a work order
+        /// Restores inventory
+        /// </summary>
+        [HttpPost]
+        [Route("work-orders/{id}/remove-part")]
+        public async Task<IActionResult> RemovePartFromWorkOrder(int id, [FromBody] RemovePartRequest request)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Validate work order exists and belongs to tenant
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);
+
+                if (workOrder == null)
+                {
+                    return NotFound(new { success = false, message = "Work order not found." });
+                }
+
+                // Cannot remove parts from completed or cancelled work orders
+                if (workOrder.Status == "Completed" || workOrder.Status == "Cancelled")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Cannot remove parts from completed or cancelled work orders."
+                    });
+                }
+
+                // Validate WorkOrderPart exists and belongs to tenant
+                var workOrderPart = await _context.WorkOrderParts
+                    .Include(wop => wop.Part)
+                    .FirstOrDefaultAsync(wop => wop.Id == request.WorkOrderPartId && 
+                                               wop.CompanyId == companyId &&
+                                               wop.WorkOrderId == id);
+
+                if (workOrderPart == null)
+                {
+                    return NotFound(new { success = false, message = "Part usage record not found." });
+                }
+
+                // Restore inventory
+                if (workOrderPart.Part != null)
+                {
+                    workOrderPart.Part.Quantity += workOrderPart.QuantityUsed;
+                    workOrderPart.Part.UpdatedAt = DateTime.Now;
+                }
+
+                // Remove WorkOrderPart entry
+                _context.WorkOrderParts.Remove(workOrderPart);
+                await _context.SaveChangesAsync();
+
+                // Recalculate parts cost using CostService
+                var updatedCost = await _costService.GetOrCreateWorkOrderCostAsync(id, companyId);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Part removed successfully!",
+                    partsCost = updatedCost.PartsCost,
+                    totalCost = updatedCost.TotalCost
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while removing part.",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Get available parts from inventory for selection
+        /// </summary>
+        [HttpGet]
+        [Route("parts/available")]
+        public async Task<IActionResult> GetAvailableParts()
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                var parts = await _context.Parts
+                    .Where(p => p.CompanyId == companyId && p.IsActive && p.Quantity > 0)
+                    .Select(p => new
+                    {
+                        value = p.PartId,
+                        text = p.PartName + (p.PartNumber != null ? $" ({p.PartNumber})" : ""),
+                        partName = p.PartName,
+                        partNumber = p.PartNumber,
+                        availableQuantity = p.Quantity,
+                        unitCost = p.UnitCost ?? 0,
+                        location = p.Location
+                    })
+                    .OrderBy(p => p.partName)
+                    .ToListAsync();
+
+                return Ok(parts);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Failed to load parts",
+                    error = ex.Message
+                });
+            }
+        }
     }
 
     public class UpdateStatusRequest
@@ -722,6 +1249,12 @@ namespace IT15_Project.Controllers
         public string Status { get; set; } = string.Empty;
         public DateTime? ActualCompletion { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class UpdateCostRequest
+    {
+        public decimal LaborCost { get; set; }
+        public decimal OtherCost { get; set; }
     }
 
     public class EditWorkOrderRequest
@@ -733,5 +1266,16 @@ namespace IT15_Project.Controllers
         public DateTime? StartDate { get; set; }
         public DateTime? ExpectedCompletion { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class AddPartRequest
+    {
+        public int PartId { get; set; }
+        public int QuantityUsed { get; set; }
+    }
+
+    public class RemovePartRequest
+    {
+        public int WorkOrderPartId { get; set; }
     }
 }

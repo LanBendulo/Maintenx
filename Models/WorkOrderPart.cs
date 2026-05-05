@@ -14,6 +14,10 @@ namespace IT15_Project.Models
         [Column("id")]
         public int Id { get; set; }
 
+        [Column("company_id")]
+        [Required]
+        public int CompanyId { get; set; }
+
         [Column("work_order_id")]
         [Required]
         public int WorkOrderId { get; set; }
@@ -36,6 +40,9 @@ namespace IT15_Project.Models
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         // Navigation properties
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
+
         [ForeignKey("WorkOrderId")]
         public virtual WorkOrder? WorkOrder { get; set; }
 

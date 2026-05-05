@@ -19,11 +19,16 @@ namespace IT15_Project.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ITenantService _tenantService;
+        private readonly ICostService _costService;
 
-        public TechnicianDashboardController(ApplicationDbContext context, ITenantService tenantService)
+        public TechnicianDashboardController(
+            ApplicationDbContext context, 
+            ITenantService tenantService,
+            ICostService costService)
         {
             _context = context;
             _tenantService = tenantService;
+            _costService = costService;
         }
 
         /// <summary>
@@ -290,6 +295,9 @@ namespace IT15_Project.Controllers
             workOrder.Status = "Completed";
             workOrder.ActualCompletion = DateTime.Now;
             
+            // LOCK COSTS (recalculate and finalize)
+            var finalCost = await _costService.LockCostsAsync(workOrder.WorkOrderId, companyId);
+            
             // AUTO-CREATE MAINTENANCE LOG
             var logExists = await _context.MaintenanceLogs
                 .AnyAsync(ml => ml.WorkOrderId == workOrder.WorkOrderId);
@@ -305,6 +313,11 @@ namespace IT15_Project.Controllers
                     Description = workOrder.Description,
                     CompletedByPersonnelId = workOrder.AssignedTo,
                     CompletedDate = workOrder.ActualCompletion.Value,
+                    // Cost snapshot
+                    LaborCost = finalCost.LaborCost,
+                    PartsCost = finalCost.PartsCost,
+                    OtherCost = finalCost.OtherCost,
+                    TotalCost = finalCost.TotalCost,
                     CreatedAt = DateTime.Now
                 };
 

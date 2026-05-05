@@ -1,3 +1,4 @@
+@model IT15_Project.Models.ViewModels.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["Active"] = "Dashboard";
@@ -16,9 +17,9 @@
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
                 </svg>
             </div>
-            <span class="stat-trend up">↑ 8%</span>
+            <span class="stat-trend up">↑ @Model.TotalRequests</span>
         </div>
-        <div class="stat-value">1,284</div>
+        <div class="stat-value">@Model.TotalRequests.ToString("N0")</div>
         <div class="stat-label">Total Maintenance Requests</div>
     </div>
 
@@ -29,9 +30,9 @@
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
             </div>
-            <span class="stat-trend warn">▲ 47</span>
+            <span class="stat-trend warn">▲ @Model.PendingRequests</span>
         </div>
-        <div class="stat-value" style="color:var(--mx-orange)">47</div>
+        <div class="stat-value" style="color:var(--mx-orange)">@Model.PendingRequests</div>
         <div class="stat-label">Pending Requests</div>
     </div>
 
@@ -42,9 +43,9 @@
                     <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
                 </svg>
             </div>
-            <span class="stat-trend up">↑ 3</span>
+            <span class="stat-trend up">↑ @Model.ActiveWorkOrders</span>
         </div>
-        <div class="stat-value" style="color:var(--mx-navy)">23</div>
+        <div class="stat-value" style="color:var(--mx-navy)">@Model.ActiveWorkOrders</div>
         <div class="stat-label">Active Work Orders</div>
     </div>
 
@@ -55,9 +56,9 @@
                     <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
                 </svg>
             </div>
-            <span class="stat-trend up">↑ 5</span>
+            <span class="stat-trend up">↑ @Model.TotalAssets</span>
         </div>
-        <div class="stat-value" style="color:var(--mx-green)">340</div>
+        <div class="stat-value" style="color:var(--mx-green)">@Model.TotalAssets</div>
         <div class="stat-label">Total Equipment / Assets</div>
     </div>
 </div>
@@ -71,16 +72,16 @@
     <div class="card">
         <div class="section-header">
             <h2>Requests by Status</h2>
-            <a href="#" class="view-all">View Report</a>
+            <a href="/admin/maintenance-requests" class="view-all">View Report</a>
         </div>
         <div class="chart-wrap">
             <canvas id="statusChart"></canvas>
         </div>
         <div class="chart-legend">
-            <div class="legend-item"><span class="legend-dot" style="background:#F47920"></span> Pending (47)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#2B7ED4"></span> In Progress (23)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#22C55E"></span> Completed (198)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#EF4444"></span> Cancelled (16)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#F47920"></span> Pending (@(Model.RequestStatusCounts.ContainsKey("Pending") ? Model.RequestStatusCounts["Pending"] : 0))</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#2B7ED4"></span> Approved (@(Model.RequestStatusCounts.ContainsKey("Approved") ? Model.RequestStatusCounts["Approved"] : 0))</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#22C55E"></span> Converted (@(Model.RequestStatusCounts.ContainsKey("Converted") ? Model.RequestStatusCounts["Converted"] : 0))</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#EF4444"></span> Rejected (@(Model.RequestStatusCounts.ContainsKey("Rejected") ? Model.RequestStatusCounts["Rejected"] : 0))</div>
         </div>
     </div>
 
@@ -90,29 +91,29 @@
             <h2>Quick Actions</h2>
         </div>
         <div class="quick-grid">
-            <a href="#" class="quick-btn qb-blue">
+            <a href="/admin/maintenance-requests" class="quick-btn qb-blue">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
                 </svg>
                 New Request
             </a>
-            <a href="#" class="quick-btn qb-navy">
+            <a href="/admin/work-orders" class="quick-btn qb-navy">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
                 </svg>
                 Work Order
             </a>
-            <a href="#" class="quick-btn qb-green">
+            <a href="/admin/assets" class="quick-btn qb-green">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
                 </svg>
                 Add Equipment
             </a>
-            <a href="#" class="quick-btn qb-orange">
+            <a href="/admin/preventive-maintenance" class="quick-btn qb-orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                Assign Tech
+                Schedule PM
             </a>
         </div>
     </div>
@@ -127,53 +128,43 @@
     <div class="card">
         <div class="section-header">
             <h2>Ongoing Work Orders</h2>
-            <a href="#" class="view-all">View All</a>
+            <a href="/admin/work-orders" class="view-all">View All</a>
         </div>
 
-        <div class="wo-item">
-            <span class="wo-id">#WO-0042</span>
-            <div class="wo-info">
-                <div class="wo-name">HVAC Unit — Building A</div>
-                <div class="wo-meta">Assigned: Juan Dela Cruz &nbsp;·&nbsp; <span class="badge badge-high" style="padding:2px 7px;font-size:11px;">High</span></div>
-            </div>
-            <div class="wo-right">
-                <div class="wo-pct">72%</div>
-                <div class="wo-progress">
-                    <div class="wo-progress-bar"><div class="wo-progress-fill" style="width:72%"></div></div>
-                </div>
-                <small style="font-size:11px;color:var(--mx-muted)">Due Apr 30</small>
-            </div>
-        </div>
+        @if (Model.OngoingWorkOrders.Any())
+        {
+            @foreach (var wo in Model.OngoingWorkOrders)
+            {
+                var priorityClass = wo.Priority?.ToLower() switch
+                {
+                    "high" => "badge-high",
+                    "medium" => "badge-med",
+                    "low" => "badge-low",
+                    _ => "badge-med"
+                };
 
-        <div class="wo-item">
-            <span class="wo-id">#WO-0041</span>
-            <div class="wo-info">
-                <div class="wo-name">Generator — Floor 3</div>
-                <div class="wo-meta">Assigned: Maria Santos &nbsp;·&nbsp; <span class="badge badge-med" style="padding:2px 7px;font-size:11px;">Medium</span></div>
-            </div>
-            <div class="wo-right">
-                <div class="wo-pct">45%</div>
-                <div class="wo-progress">
-                    <div class="wo-progress-bar"><div class="wo-progress-fill" style="width:45%"></div></div>
+                <div class="wo-item">
+                    <span class="wo-id">#@wo.WorkOrderNumber</span>
+                    <div class="wo-info">
+                        <div class="wo-name">@wo.AssetName</div>
+                        <div class="wo-meta">Assigned: @wo.TechnicianName &nbsp;·&nbsp; <span class="badge @priorityClass" style="padding:2px 7px;font-size:11px;">@wo.Priority</span></div>
+                    </div>
+                    <div class="wo-right">
+                        <div class="wo-pct">@wo.ProgressPercentage%</div>
+                        <div class="wo-progress">
+                            <div class="wo-progress-bar"><div class="wo-progress-fill" style="width:@(wo.ProgressPercentage)%"></div></div>
+                        </div>
+                        <small style="font-size:11px;color:var(--mx-muted)">Due @(wo.DueDate.HasValue ? wo.DueDate.Value.ToString("MMM dd") : "N/A")</small>
+                    </div>
                 </div>
-                <small style="font-size:11px;color:var(--mx-muted)">Due May 2</small>
+            }
+        }
+        else
+        {
+            <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                <p>No ongoing work orders at the moment.</p>
             </div>
-        </div>
-
-        <div class="wo-item">
-            <span class="wo-id">#WO-0039</span>
-            <div class="wo-info">
-                <div class="wo-name">Elevator — Block B</div>
-                <div class="wo-meta">Assigned: Carlo Reyes &nbsp;·&nbsp; <span class="badge badge-low" style="padding:2px 7px;font-size:11px;">Low</span></div>
-            </div>
-            <div class="wo-right">
-                <div class="wo-pct">90%</div>
-                <div class="wo-progress">
-                    <div class="wo-progress-bar"><div class="wo-progress-fill" style="width:90%"></div></div>
-                </div>
-                <small style="font-size:11px;color:var(--mx-muted)">Due Apr 28</small>
-            </div>
-        </div>
+        }
     </div>
 
     <!-- Alerts -->
@@ -182,32 +173,42 @@
             <h2 style="color:var(--mx-red)">⚠ Active Alerts</h2>
         </div>
 
-        <div class="alert-item red">
-            <span class="alert-icon">🔴</span>
-            <div class="alert-text">
-                <div class="alert-title">Generator Maintenance</div>
-                <div class="alert-sub">3 days overdue — Building C</div>
-            </div>
-            <button class="alert-dismiss" title="Dismiss">×</button>
-        </div>
+        @if (Model.Alerts.Any())
+        {
+            @foreach (var alert in Model.Alerts)
+            {
+                var alertClass = alert.Severity switch
+                {
+                    "high" => "red",
+                    "medium" => "orange",
+                    "low" => "yellow",
+                    _ => "yellow"
+                };
 
-        <div class="alert-item orange">
-            <span class="alert-icon">🟠</span>
-            <div class="alert-text">
-                <div class="alert-title">HVAC Filter Check</div>
-                <div class="alert-sub">Due today — Cooling Tower 1</div>
-            </div>
-            <button class="alert-dismiss" title="Dismiss">×</button>
-        </div>
+                var alertIcon = alert.Severity switch
+                {
+                    "high" => "🔴",
+                    "medium" => "🟠",
+                    "low" => "🟡",
+                    _ => "🟡"
+                };
 
-        <div class="alert-item yellow">
-            <span class="alert-icon">🟡</span>
-            <div class="alert-text">
-                <div class="alert-title">Elevator Inspection</div>
-                <div class="alert-sub">Due tomorrow — Block B</div>
+                <div class="alert-item @alertClass">
+                    <span class="alert-icon">@alertIcon</span>
+                    <div class="alert-text">
+                        <div class="alert-title">@alert.Title</div>
+                        <div class="alert-sub">@alert.Description</div>
+                    </div>
+                    <button class="alert-dismiss" title="Dismiss">×</button>
+                </div>
+            }
+        }
+        else
+        {
+            <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                <p>✅ No active alerts. System running smoothly!</p>
             </div>
-            <button class="alert-dismiss" title="Dismiss">×</button>
-        </div>
+        }
     </div>
 </div>
 
@@ -389,7 +390,14 @@
 (function () {
     // ── Donut Chart ──────────────────────────────
     var ctx = document.getElementById('statusChart').getContext('2d');
-    var chartData = [47, 23, 198, 16];
+    
+    // Get data from server
+    var chartData = [
+        @(Model.RequestStatusCounts.ContainsKey("Pending") ? Model.RequestStatusCounts["Pending"] : 0),
+        @(Model.RequestStatusCounts.ContainsKey("Approved") ? Model.RequestStatusCounts["Approved"] : 0),
+        @(Model.RequestStatusCounts.ContainsKey("Converted") ? Model.RequestStatusCounts["Converted"] : 0),
+        @(Model.RequestStatusCounts.ContainsKey("Rejected") ? Model.RequestStatusCounts["Rejected"] : 0)
+    ];
     var chartTotal = chartData.reduce(function(a, b) { return a + b; }, 0);
 
     // Custom plugin: draws total in center of donut hole
@@ -421,7 +429,7 @@
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+            labels: ['Pending', 'Approved', 'Converted', 'Rejected'],
             datasets: [{
                 data: chartData,
                 backgroundColor: ['#F47920', '#2B7ED4', '#22C55E', '#EF4444'],
@@ -438,6 +446,7 @@
                 tooltip: {
                     callbacks: {
                         label: function(c) {
+                            if (chartTotal === 0) return ' ' + c.label + ': 0';
                             var pct = Math.round(c.parsed / chartTotal * 100);
                             return ' ' + c.label + ': ' + c.parsed + ' (' + pct + '%)';
                         }

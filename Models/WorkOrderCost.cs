@@ -14,6 +14,10 @@ namespace IT15_Project.Models
         [Column("cost_id")]
         public int CostId { get; set; }
 
+        [Column("company_id")]
+        [Required]
+        public int CompanyId { get; set; }
+
         [Column("work_order_id")]
         [Required]
         public int WorkOrderId { get; set; }
@@ -40,6 +44,9 @@ namespace IT15_Project.Models
         public DateTime? UpdatedAt { get; set; }
 
         // Navigation properties
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
+
         [ForeignKey("WorkOrderId")]
         public virtual WorkOrder? WorkOrder { get; set; }
     }
