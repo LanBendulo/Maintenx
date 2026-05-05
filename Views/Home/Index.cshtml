@@ -1,8 +1,406 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "MaintenX - Maintenance Management System";
+    Layout = "~/Views/Shared/_LandingLayout.cshtml";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="hero-badge">
+                    <span>Made for Modern Enterprises</span>
+                    <span class="badge-icons">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <i class="bi bi-shield-check"></i>
+                        <i class="bi bi-lightning-fill"></i>
+                    </span>
+                </div>
+                
+                <h1 class="hero-title">
+                    Streamline maintenance tracking,
+                    <span class="text-gradient">automate work orders</span>, and simplify facility management for your enterprise.
+                </h1>
+                
+                <p class="hero-subtitle">
+                    Designed for Facility Managers & Maintenance Teams • Real-time Tracking • Preventive Maintenance • Asset Management Ready
+                </p>
+                
+                <div class="hero-cta">
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg">Get Started Free</a>
+                    <a asp-area="" asp-controller="Home" asp-action="About" class="btn btn-outline-secondary btn-lg">Learn More</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="hero-image">
+                    <div class="floating-card card-1">
+                        <i class="bi bi-tools"></i>
+                        <span>Work Orders</span>
+                    </div>
+                    <div class="floating-card card-2">
+                        <i class="bi bi-calendar-check"></i>
+                        <span>Scheduled Maintenance</span>
+                    </div>
+                    <div class="floating-card card-3">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Analytics</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="trust-banner">
+            <p>Trusted by enterprises nationwide</p>
+            <div class="trust-stats">
+                <div class="stat-item">
+                    <strong>500+</strong>
+                    <span>Active Users</span>
+                </div>
+                <div class="stat-item">
+                    <strong>10K+</strong>
+                    <span>Work Orders</span>
+                </div>
+                <div class="stat-item">
+                    <strong>99.9%</strong>
+                    <span>Uptime</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2>Powerful Features of MaintenX</h2>
+            <p>Everything you need to manage maintenance operations efficiently</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-qr-code-scan"></i>
+                    </div>
+                    <h3>QR Code Asset Tracking</h3>
+                    <p>Track assets and equipment using unique QR codes. Real-time location tracking with detailed maintenance history.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Real-time asset tracking</li>
+                        <li><i class="bi bi-check2"></i> Equipment QR codes</li>
+                        <li><i class="bi bi-check2"></i> Maintenance history</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-calendar-event"></i>
+                    </div>
+                    <h3>Preventive Maintenance</h3>
+                    <p>Schedule and automate preventive maintenance tasks. Get notifications before equipment failures occur.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Automated scheduling</li>
+                        <li><i class="bi bi-check2"></i> Smart notifications</li>
+                        <li><i class="bi bi-check2"></i> Compliance tracking</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <h3>Work Order Management</h3>
+                    <p>Create, assign, and track work orders from start to completion. Mobile-friendly interface for field technicians.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Digital work orders</li>
+                        <li><i class="bi bi-check2"></i> Priority management</li>
+                        <li><i class="bi bi-check2"></i> Status tracking</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <h3>Detailed Reports</h3>
+                    <p>Generate comprehensive maintenance reports and analytics. Track costs, downtime, and team performance.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Custom reports</li>
+                        <li><i class="bi bi-check2"></i> Cost analysis</li>
+                        <li><i class="bi bi-check2"></i> Performance metrics</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <h3>Team Management</h3>
+                    <p>Manage technicians, assign tasks, and track team performance. Role-based access control for security.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> User roles & permissions</li>
+                        <li><i class="bi bi-check2"></i> Task assignment</li>
+                        <li><i class="bi bi-check2"></i> Performance tracking</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-phone"></i>
+                    </div>
+                    <h3>Mobile Access</h3>
+                    <p>Access MaintenX from any device. Responsive design works seamlessly on desktop, tablet, and mobile.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Responsive design</li>
+                        <li><i class="bi bi-check2"></i> Offline capability</li>
+                        <li><i class="bi bi-check2"></i> Real-time sync</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="about-section" id="about">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2>About MaintenX</h2>
+            <p>Built for Modern Enterprises</p>
+        </div>
+        
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h3>Our Mission</h3>
+                <p class="lead">
+                    MaintenX was created to address the unique challenges of maintenance management in modern enterprises. We understand the complexities of asset tracking, preventive maintenance scheduling, and compliance requirements.
+                </p>
+                <p>
+                    Our team of developers and maintenance experts have built a system that simplifies operations while saving time for facility managers and maintenance teams across industries.
+                </p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h4>500+</h4>
+                        <p>Active Enterprises</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4>99.9%</h4>
+                        <p>System Uptime</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4>24/7</h4>
+                        <p>Support Available</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="why-choose">
+                    <h3>Why Choose MaintenX</h3>
+                    <div class="benefit-item">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                        <div>
+                            <h4>Easy to Use</h4>
+                            <p>Intuitive interface designed for quick adoption by your entire team.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-shield-check"></i>
+                        <div>
+                            <h4>Secure & Reliable</h4>
+                            <p>Enterprise-grade security with automatic backups and 99.9% uptime.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-headset"></i>
+                        <div>
+                            <h4>Dedicated Support</h4>
+                            <p>Expert support team available to help you succeed.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="pricing-section" id="pricing">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2>Simple Pricing for Businesses</h2>
+            <p>Choose the plan that fits your organization's needs</p>
+        </div>
+        
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-4">
+                <div class="pricing-card">
+                    <div class="pricing-badge">Free Trial</div>
+                    <h3>Starter</h3>
+                    <p>Explore MaintenX risk-free before committing</p>
+                    <div class="price">
+                        <span class="amount">14</span>
+                        <span class="period">days free</span>
+                    </div>
+                    <p class="price-note">Then choose a paid plan to continue</p>
+                    <ul class="pricing-features">
+                        <li><i class="bi bi-check-circle-fill"></i> Up to 5 Assets</li>
+                        <li><i class="bi bi-check-circle-fill"></i> 1 Admin user</li>
+                        <li><i class="bi bi-check-circle-fill"></i> QR Code Tracking</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Basic Work Orders</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Email Support</li>
+                    </ul>
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-outline-primary w-100">Start Free Trial</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="pricing-card featured">
+                    <div class="pricing-badge popular">Most Popular</div>
+                    <h3>Professional</h3>
+                    <p>For growing enterprises</p>
+                    <div class="price">
+                        <span class="currency">$</span>
+                        <span class="amount">49</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <p class="price-note">Billed annually at $588</p>
+                    <ul class="pricing-features">
+                        <li><i class="bi bi-check-circle-fill"></i> Up to 200 Assets</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Up to 10 Users</li>
+                        <li><i class="bi bi-check-circle-fill"></i> QR Code Tracking</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Preventive Maintenance</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Advanced Reports</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Priority Support</li>
+                    </ul>
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary w-100">Get Started</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <p>For large organizations</p>
+                    <div class="price">
+                        <span class="amount">Custom</span>
+                    </div>
+                    <p class="price-note">Contact us for pricing</p>
+                    <ul class="pricing-features">
+                        <li><i class="bi bi-check-circle-fill"></i> Unlimited Assets</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Unlimited Users</li>
+                        <li><i class="bi bi-check-circle-fill"></i> All Features</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Custom Integrations</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Dedicated Account Manager</li>
+                        <li><i class="bi bi-check-circle-fill"></i> 24/7 Phone Support</li>
+                    </ul>
+                    <a href="#contact" class="btn btn-outline-primary w-100">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-section" id="contact">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2>Contact MaintenX</h2>
+            <p>Get in touch with our team to learn how MaintenX can transform your maintenance operations</p>
+        </div>
+        
+        <div class="row g-5">
+            <div class="col-lg-6">
+                <div class="contact-form-wrapper">
+                    <h3>Send us a message</h3>
+                    <form id="contactForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="company">
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Send Message</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="contact-info">
+                    <h3>Get in Touch</h3>
+                    
+                    <div class="info-item">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <div>
+                            <h4>Our Office</h4>
+                            <p>123 Business Street<br>City, State 12345</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <i class="bi bi-telephone-fill"></i>
+                        <div>
+                            <h4>Phone</h4>
+                            <p>(555) 123-4567<br>Mon-Fri, 9am-6pm</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <i class="bi bi-envelope-fill"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>info@maintenx.com<br>support@maintenx.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="social-links">
+                        <h4>Follow Us</h4>
+                        <div class="social-icons">
+                            <a href="#"><i class="bi bi-facebook"></i></a>
+                            <a href="#"><i class="bi bi-twitter"></i></a>
+                            <a href="#"><i class="bi bi-linkedin"></i></a>
+                            <a href="#"><i class="bi bi-instagram"></i></a>
+                        </div>
+                    </div>
+                    
+                    <div class="cta-box">
+                        <h4>Ready to streamline your maintenance?</h4>
+                        <p>Book a free demo with our team to see how MaintenX can simplify your operations.</p>
+                        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary">Book a Free Demo</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Thank you for your message! We will get back to you soon.');
+            this.reset();
+        });
+    </script>
+}

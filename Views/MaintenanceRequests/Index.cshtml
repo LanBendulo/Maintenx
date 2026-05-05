@@ -1,0 +1,389 @@
+@model List<IT15_Project.Models.MaintenanceRequest>
+@{
+    ViewData["Title"] = "Maintenance Requests";
+    ViewData["Active"] = "MaintenanceRequests";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Maintenance Requests</h1>
+        <p>Manage and review all maintenance requests</p>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;">
+        <select id="archiveFilterSelect" class="filter-select" style="min-width:150px;">
+            <option value="active" selected="@(ViewBag.Filter == "active" ? "selected" : null)">Active Only</option>
+            <option value="archived" selected="@(ViewBag.Filter == "archived" ? "selected" : null)">Archived Only</option>
+            <option value="all" selected="@(ViewBag.Filter == "all" ? "selected" : null)">All Requests</option>
+        </select>
+        <button class="btn-primary-mx" id="openMrModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            New Request
+        </button>
+    </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count ?? 0)</div>
+        <div class="stat-label">Total Requests</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend warn">● @(Model?.Count(mr => mr.Status == "Pending") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(mr => mr.Status == "Pending") ?? 0)</div>
+        <div class="stat-label">Pending Approval</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(mr => mr.Status == "Converted") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(mr => mr.Status == "Converted") ?? 0)</div>
+        <div class="stat-label">Converted to WO</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="mr-search" placeholder="Search requests..." />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Converted">Converted</option>
+        </select>
+        <select class="filter-select" id="filter-priority">
+            <option value="">All Priority</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- REQUESTS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>All Maintenance Requests</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@(Model?.Count ?? 0)</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="mr-table">
+            <thead>
+                <tr>
+                    <th>Request #</th>
+                    <th>Title</th>
+                    <th>Asset</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Requested By</th>
+                    <th>Created</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mr-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var mr in Model)
+                    {
+                        var statusClass = mr.Status?.ToLower() switch
+                        {
+                            "pending" => "pending",
+                            "approved" => "inprog",
+                            "rejected" => "done",
+                            "converted" => "done",
+                            _ => "pending"
+                        };
+                        
+                        var priorityClass = mr.Priority?.ToLower() switch
+                        {
+                            "high" => "high",
+                            "medium" => "med",
+                            "low" => "low",
+                            _ => "med"
+                        };
+                        
+                        <tr data-status="@mr.Status" data-priority="@mr.Priority" style="@(mr.IsArchived ? "opacity:0.6;background:#f8f9fa;" : "")">
+                            <td class="td-id">
+                                @mr.RequestNumber
+                                @if (mr.IsArchived)
+                                {
+                                    <span class="badge" style="background:#6c757d;color:white;font-size:10px;margin-left:4px;">ARCHIVED</span>
+                                }
+                            </td>
+                            <td style="font-weight:500;">@mr.Title</td>
+                            <td class="td-equip">@(mr.Asset?.AssetName ?? "N/A")</td>
+                            <td style="font-size:13px;color:var(--mx-muted)">@(mr.Category ?? "-")</td>
+                            <td><span class="badge-priority-@priorityClass">@mr.Priority</span></td>
+                            <td><span class="badge badge-@statusClass">@mr.Status</span></td>
+                            <td>@(mr.RequestedByPersonnel?.FullName ?? "N/A")</td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(mr.CreatedAt.ToString("MMM dd, yyyy") ?? "-")</td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="#" class="action-view-mr" data-mr-id="@mr.RequestId">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Details
+                                        </a>
+                                        @if (mr.Status == "Pending")
+                                        {
+                                            <a href="#" class="action-approve-mr" data-mr-id="@mr.RequestId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                Approve
+                                            </a>
+                                            <a href="#" class="action-reject-mr" data-mr-id="@mr.RequestId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                                Reject
+                                            </a>
+                                        }
+                                        @if (mr.Status == "Approved")
+                                        {
+                                            <a href="#" class="action-convert-mr" data-mr-id="@mr.RequestId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                                                Convert to Work Order
+                                            </a>
+                                        }
+                                        @if (mr.Status == "Converted" && mr.WorkOrder != null)
+                                        {
+                                            <a href="/admin/work-orders">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                                View Work Order
+                                            </a>
+                                        }
+                                        @if (!mr.IsArchived && (mr.Status == "Rejected" || mr.Status == "Converted"))
+                                        {
+                                            <a href="#" class="action-archive-mr" data-mr-id="@mr.RequestId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Archive
+                                            </a>
+                                        }
+                                        @if (mr.IsArchived)
+                                        {
+                                            <a href="#" class="action-unarchive-mr" data-mr-id="@mr.RequestId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 3 21 21 21 21 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Restore
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No maintenance requests found. Click "New Request" to create one.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- CREATE REQUEST MODAL -->
+<div class="mx-modal-overlay" id="mrModal" role="dialog" aria-modal="true">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title">New Maintenance Request</div>
+                    <div class="modal-subtitle">Submit a request for maintenance work</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeMrModal">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="mrForm" novalidate>
+                <div class="modal-full">
+                    <label class="mx-label">Title <span class="required">*</span></label>
+                    <input type="text" class="mx-input" id="mr-title" placeholder="Brief description (5-10 words)" maxlength="100" required />
+                    <div class="input-error" id="err-title">Please enter a title (max 100 characters).</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Equipment / Asset <span class="required">*</span></label>
+                    <select class="mx-select" id="mr-asset" required>
+                        <option value="">Select equipment…</option>
+                    </select>
+                    <div class="input-error" id="err-asset">Please select an asset.</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Category</label>
+                    <select class="mx-select" id="mr-category">
+                        <option value="">Select category (optional)…</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Mechanical">Mechanical</option>
+                        <option value="HVAC">HVAC</option>
+                        <option value="Plumbing">Plumbing</option>
+                        <option value="Structural">Structural</option>
+                        <option value="Safety">Safety</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Location</label>
+                    <input type="text" class="mx-input" id="mr-location" placeholder="Specific location (optional)" maxlength="200" />
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Description <span class="required">*</span></label>
+                    <textarea class="mx-textarea" id="mr-description" placeholder="Detailed description of the maintenance issue..." required></textarea>
+                    <div class="input-error" id="err-description">Please enter a description.</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Attachment / Photo</label>
+                    <input type="file" class="mx-input" id="mr-attachment" accept="image/*,.pdf" />
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--mx-muted);">Upload an image or PDF (optional)</small>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Priority <span class="required">*</span></label>
+                    <div class="priority-group">
+                        <div class="priority-radio low">
+                            <input type="radio" name="mr-priority" id="mr-p-low" value="Low" />
+                            <label for="mr-p-low">🟢 Low</label>
+                        </div>
+                        <div class="priority-radio med">
+                            <input type="radio" name="mr-priority" id="mr-p-med" value="Medium" checked />
+                            <label for="mr-p-med">🟠 Medium</label>
+                        </div>
+                        <div class="priority-radio high">
+                            <input type="radio" name="mr-priority" id="mr-p-high" value="High" />
+                            <label for="mr-p-high">🔴 High</label>
+                        </div>
+                    </div>
+                    <small style="display:block;margin-top:8px;font-size:12px;color:var(--mx-muted);">
+                        <strong>High Priority:</strong> Urgent issues requiring immediate attention (faster SLA)
+                    </small>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelMrModal">Cancel</button>
+            <button class="btn-modal-submit" id="submitMrForm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Submit Request
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW DETAILS MODAL -->
+<div class="mx-modal-overlay" id="mrDetailsModal" role="dialog" aria-modal="true">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(43,126,212,.10);color:var(--mx-blue);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title">Request Details</div>
+                    <div class="modal-subtitle" id="mr-details-number">MR-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeMrDetailsModal">×</button>
+        </div>
+        <div class="modal-body" style="max-height:500px;overflow-y:auto;">
+            <div style="display:grid;gap:16px;">
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Title</label>
+                    <p id="mr-details-title" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Asset</label>
+                    <p id="mr-details-asset" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Description</label>
+                    <p id="mr-details-description" style="margin:4px 0 0;font-size:14px;line-height:1.6;">-</p>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Category</label>
+                        <p id="mr-details-category" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Location</label>
+                        <p id="mr-details-location" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div id="mr-details-attachment-container" style="display:none;">
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Attachment</label>
+                    <a id="mr-details-attachment" href="#" target="_blank" style="display:inline-block;margin-top:4px;color:var(--mx-blue);text-decoration:none;font-size:14px;">
+                        📎 View Attachment
+                    </a>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Priority</label>
+                        <p id="mr-details-priority" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Status</label>
+                        <p id="mr-details-status" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Requested By</label>
+                        <p id="mr-details-requested-by" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Created</label>
+                        <p id="mr-details-created" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="closeMrDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST -->
+<div class="mx-toast-success" id="mr-toast">
+    <span class="toast-icon">✅</span>
+    Request created successfully!
+</div>
+
+@section Scripts {
+    <script src="~/js/maintenance-requests.js" asp-append-version="true"></script>
+}

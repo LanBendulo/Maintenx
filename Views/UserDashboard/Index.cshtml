@@ -1,0 +1,317 @@
+@{
+    ViewData["Title"] = "My Dashboard";
+    ViewData["Active"] = "Dashboard";
+    Layout = "/Views/Shared/_UserLayout.cshtml";
+}
+
+<!-- ══════════════════════════════════════
+     WELCOME BANNER
+════════════════════════════════════════ -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h2>Good afternoon, Juan! 👋</h2>
+        <p>You have <strong style="color:#F47920;">3 pending requests</strong> awaiting review. Submit a new request or track your existing ones.</p>
+    </div>
+    <div class="welcome-actions">
+        <a href="/UserDashboard/SubmitRequest" class="btn-banner-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Submit Request
+        </a>
+        <a href="/UserDashboard/MyRequests" class="btn-banner-secondary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            My Requests
+        </a>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 1 — SUMMARY CARDS
+════════════════════════════════════════ -->
+<div class="user-stats-grid">
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ 2</span>
+        </div>
+        <div class="stat-value">12</div>
+        <div class="stat-label">Total My Requests</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● 3</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">3</div>
+        <div class="stat-label">Pending Requests</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">● 2</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">2</div>
+        <div class="stat-label">In Progress</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ 7</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">7</div>
+        <div class="stat-label">Completed</div>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 2 — CHART + NOTIFICATIONS
+════════════════════════════════════════ -->
+<div class="user-content-row">
+
+    <!-- Status Overview Chart -->
+    <div class="card">
+        <div class="section-header">
+            <h2>My Request Status</h2>
+            <a href="/UserDashboard/MyRequests" class="view-all">View All</a>
+        </div>
+        <div class="user-chart-wrap">
+            <canvas id="userStatusChart"></canvas>
+            <div class="chart-center-label">
+                <span class="center-num">12</span>
+                <span class="center-sub">Total</span>
+            </div>
+        </div>
+        <div class="chart-legend" style="justify-content:center; margin-top:18px;">
+            <div class="legend-item"><span class="legend-dot" style="background:#F47920"></span> Pending (3)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#2B7ED4"></span> In Progress (2)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#22C55E"></span> Completed (7)</div>
+        </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div class="card">
+        <div class="section-header">
+            <h2>Notifications</h2>
+            <a href="/UserDashboard/Notifications" class="view-all">See All</a>
+        </div>
+        <div class="notif-list">
+
+            <div class="notif-item unread">
+                <span class="notif-dot-indicator green"></span>
+                <div class="notif-body">
+                    <div class="notif-msg">✅ Request <strong>#MR-1082</strong> has been completed.</div>
+                    <div class="notif-time">10 minutes ago</div>
+                </div>
+            </div>
+
+            <div class="notif-item unread">
+                <span class="notif-dot-indicator blue"></span>
+                <div class="notif-body">
+                    <div class="notif-msg">🔧 Request <strong>#MR-1083</strong> is now In Progress.</div>
+                    <div class="notif-time">2 hours ago</div>
+                </div>
+            </div>
+
+            <div class="notif-item">
+                <span class="notif-dot-indicator orange"></span>
+                <div class="notif-body">
+                    <div class="notif-msg">📋 Your request <strong>#MR-1084</strong> has been approved.</div>
+                    <div class="notif-time">Yesterday, 3:45 PM</div>
+                </div>
+            </div>
+
+            <div class="notif-item">
+                <span class="notif-dot-indicator green"></span>
+                <div class="notif-body">
+                    <div class="notif-msg">✅ Request <strong>#MR-1079</strong> resolved. Rate the service!</div>
+                    <div class="notif-time">Apr 25, 2026</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 3 — MY RECENT REQUESTS TABLE
+════════════════════════════════════════ -->
+<div class="card">
+    <div class="section-header">
+        <h2>My Recent Requests</h2>
+        <a href="/UserDashboard/MyRequests" class="view-all">View All</a>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">All</button>
+        <button class="filter-tab" data-filter="pending">Pending</button>
+        <button class="filter-tab" data-filter="inprog">In Progress</button>
+        <button class="filter-tab" data-filter="done">Completed</button>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="mx-table">
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Equipment / Asset</th>
+                    <th>Issue Description</th>
+                    <th>Status</th>
+                    <th>Date Submitted</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-status="inprog">
+                    <td class="td-id">#MR-1084</td>
+                    <td class="td-equip">HVAC Unit A1</td>
+                    <td class="td-issue">Compressor making loud noise</td>
+                    <td><span class="badge badge-inprog">In Progress</span></td>
+                    <td style="color:var(--mx-muted);font-size:12px;">Apr 27, 2026</td>
+                    <td>
+                        <a href="#" class="btn-view">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                <tr data-status="pending">
+                    <td class="td-id">#MR-1083</td>
+                    <td class="td-equip">Water Dispenser — Office 2</td>
+                    <td class="td-issue">Not cooling properly</td>
+                    <td><span class="badge badge-pending">Pending</span></td>
+                    <td style="color:var(--mx-muted);font-size:12px;">Apr 26, 2026</td>
+                    <td>
+                        <a href="#" class="btn-view">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                <tr data-status="pending">
+                    <td class="td-id">#MR-1081</td>
+                    <td class="td-equip">Conference Room Projector</td>
+                    <td class="td-issue">No display output on HDMI</td>
+                    <td><span class="badge badge-pending">Pending</span></td>
+                    <td style="color:var(--mx-muted);font-size:12px;">Apr 25, 2026</td>
+                    <td>
+                        <a href="#" class="btn-view">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                <tr data-status="done">
+                    <td class="td-id">#MR-1079</td>
+                    <td class="td-equip">Elevator — Block B</td>
+                    <td class="td-issue">Door sensor malfunction</td>
+                    <td><span class="badge badge-done">Completed</span></td>
+                    <td style="color:var(--mx-muted);font-size:12px;">Apr 23, 2026</td>
+                    <td>
+                        <a href="#" class="btn-view">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                <tr data-status="done">
+                    <td class="td-id">#MR-1075</td>
+                    <td class="td-equip">Office Aircon — Room 3B</td>
+                    <td class="td-issue">Unit not turning on</td>
+                    <td><span class="badge badge-done">Completed</span></td>
+                    <td style="color:var(--mx-muted);font-size:12px;">Apr 20, 2026</td>
+                    <td>
+                        <a href="#" class="btn-view">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    // ── Donut Chart ──────────────────────────────
+    var ctx = document.getElementById('userStatusChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'In Progress', 'Completed'],
+            datasets: [{
+                data: [3, 2, 7],
+                backgroundColor: ['#F47920', '#2B7ED4', '#22C55E'],
+                borderWidth: 0,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '72%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (c) {
+                            return ' ' + c.label + ': ' + c.parsed + ' requests';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // ── Filter Tabs ──────────────────────────────
+    var tabs = document.querySelectorAll('.filter-tab');
+    var rows = document.querySelectorAll('tbody tr');
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            tabs.forEach(function (t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            var filter = this.getAttribute('data-filter');
+            rows.forEach(function (row) {
+                if (filter === 'all' || row.getAttribute('data-status') === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+})();
+</script>
+}

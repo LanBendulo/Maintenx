@@ -1,0 +1,583 @@
+@model List<IT15_Project.Models.WorkOrder>
+@{
+    ViewData["Title"] = "Work Orders";
+    ViewData["Active"] = "WorkOrders";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Work Orders</h1>
+        <p>Manage and monitor all maintenance work orders</p>
+    </div>
+    <button class="btn-primary-mx" id="openWoModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        Manual Work Order
+    </button>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count ?? 0)</div>
+        <div class="stat-label">Total Work Orders</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend warn">● @(Model?.Count(w => w.Status == "In Progress" || w.Status == "Pending") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(w => w.Status == "In Progress" || w.Status == "Pending") ?? 0)</div>
+        <div class="stat-label">Active / In Progress</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(w => w.Status == "Completed") ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(w => w.Status == "Completed") ?? 0)</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="wo-search" placeholder="Search ID, equipment, technician…" />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="inprog">In Progress</option>
+            <option value="done">Completed</option>
+        </select>
+        <select class="filter-select" id="filter-priority">
+            <option value="">All Priority</option>
+            <option value="high">High</option>
+            <option value="med">Medium</option>
+            <option value="low">Low</option>
+        </select>
+        <select class="filter-select" id="filter-tech">
+            <option value="">All Technicians</option>
+            <option value="juan">Juan Dela Cruz</option>
+            <option value="maria">Maria Santos</option>
+            <option value="carlo">Carlo Reyes</option>
+        </select>
+        <select class="filter-select" id="filter-source">
+            <option value="">All Sources</option>
+            <option value="request">From Request</option>
+            <option value="manual">Manual</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- WORK ORDERS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>All Work Orders</h2>
+        <span id="row-count" class="table-meta">Showing <strong>6</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="wo-table">
+            <thead>
+                <tr>
+                    <th>WO ID</th>
+                    <th>Source</th>
+                    <th>Equipment / Asset</th>
+                    <th>Technician</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Start Date</th>
+                    <th>Expected Completion</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="wo-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var wo in Model)
+                    {
+                        var statusClass = wo.Status?.ToLower() switch
+                        {
+                            "pending" => "pending",
+                            "in progress" => "inprog",
+                            "completed" => "done",
+                            _ => "pending"
+                        };
+                        
+                        var priorityClass = wo.Priority?.ToLower() switch
+                        {
+                            "high" => "high",
+                            "medium" => "med",
+                            "low" => "low",
+                            _ => "med"
+                        };
+                        
+                        var techInitials = wo.AssignedToPersonnel != null 
+                            ? $"{wo.AssignedToPersonnel.FirstName?.FirstOrDefault()}{wo.AssignedToPersonnel.LastName?.FirstOrDefault()}"
+                            : "NA";
+                        
+                        var techName = wo.AssignedToPersonnel?.FullName ?? "Unassigned";
+                        
+                        var source = wo.MaintenanceRequestId.HasValue 
+                            ? $"Request #{wo.MaintenanceRequest?.RequestNumber}" 
+                            : "Manual";
+                        var sourceClass = wo.MaintenanceRequestId.HasValue ? "request" : "manual";
+                        
+                        <tr data-status="@statusClass" data-priority="@priorityClass" data-tech="@techName.ToLower().Replace(" ", "")" data-source="@sourceClass">
+                            <td class="td-id">#WO-@wo.WorkOrderId.ToString("D4")</td>
+                            <td style="font-size:13px;color:var(--mx-muted)">@source</td>
+                            <td class="td-equip">@(wo.Asset?.AssetName ?? "N/A")</td>
+                            <td>
+                                <div class="td-staff">
+                                    <div class="td-avatar">@techInitials</div> @techName
+                                </div>
+                            </td>
+                            <td><span class="badge-priority-@priorityClass">@wo.Priority</span></td>
+                            <td><span class="badge badge-@statusClass">@wo.Status</span></td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DateCreated?.ToString("MMM dd, yyyy") ?? "-")</td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "-")</td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="#" class="action-view-details" data-wo-id="@wo.WorkOrderId">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Details
+                                        </a>
+                                        @if (wo.Status != null && (wo.Status.Equals("Open", StringComparison.OrdinalIgnoreCase) || 
+                                            wo.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase) ||
+                                            wo.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
+                                            wo.Status.Equals("inprog", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <a href="#" class="action-edit" data-wo-id="@wo.WorkOrderId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                Edit
+                                            </a>
+                                        }
+                                        <a href="#" class="action-update-status" data-wo-id="@wo.WorkOrderId">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Update Status
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No work orders found. Click "Create Work Order" to add one.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     CREATE WORK ORDER MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="mx-modal">
+
+        <!-- Modal Header -->
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="modal-title">Create Manual Work Order</div>
+                    <div class="modal-subtitle">Create a work order without a maintenance request</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeWoModal" aria-label="Close modal">×</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body">
+            <form id="woForm" novalidate>
+
+                <!-- A. Basic Info -->
+                <div class="modal-section-label">Basic Information</div>
+                <div class="modal-full">
+                    <label class="mx-label">Equipment / Asset <span class="required">*</span></label>
+                    <select class="mx-select" id="wo-equipment" required>
+                        <option value="">Select equipment…</option>
+                    </select>
+                    <div class="input-error" id="err-equip">Please select equipment.</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Issue Description <span class="required">*</span></label>
+                    <textarea class="mx-textarea" id="wo-issue" placeholder="Describe the issue to be resolved…" required></textarea>
+                    <div class="input-error" id="err-issue">Please enter an issue description.</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Priority <span class="required">*</span></label>
+                    <div class="priority-group">
+                        <div class="priority-radio low">
+                            <input type="radio" name="wo-priority" id="p-low" value="Low" />
+                            <label for="p-low">🟢 Low</label>
+                        </div>
+                        <div class="priority-radio med">
+                            <input type="radio" name="wo-priority" id="p-med" value="Medium" checked />
+                            <label for="p-med">🟠 Medium</label>
+                        </div>
+                        <div class="priority-radio high">
+                            <input type="radio" name="wo-priority" id="p-high" value="High" />
+                            <label for="p-high">🔴 High</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- B. Assignment -->
+                <div class="modal-section-label">Assignment</div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Assign Technician <span class="required">*</span></label>
+                        <select class="mx-select" id="wo-tech" required>
+                            <option value="">Select technician…</option>
+                        </select>
+                        <div class="input-error" id="err-tech">Please assign a technician.</div>
+                    </div>
+                    <div>
+                        <!-- Status removed - always starts as "Open" -->
+                    </div>
+                </div>
+
+                <!-- C. Scheduling -->
+                <div class="modal-section-label">Scheduling</div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Start Date <span class="required">*</span></label>
+                        <input type="date" class="mx-input" id="wo-start" required />
+                        <div class="input-error" id="err-start">Please select a start date.</div>
+                    </div>
+                    <div>
+                        <label class="mx-label">Expected Completion <span class="required">*</span></label>
+                        <input type="date" class="mx-input" id="wo-end" required />
+                        <div class="input-error" id="err-end">Please select a completion date.</div>
+                    </div>
+                </div>
+
+                <!-- D. Notes -->
+                <div class="modal-section-label">Additional Notes</div>
+                <div class="modal-full" style="margin-bottom:0;">
+                    <label class="mx-label">Instructions / Remarks</label>
+                    <textarea class="mx-textarea" id="wo-notes" placeholder="Any special instructions for the technician…"></textarea>
+                    <div class="input-hint">Optional — additional context for the assigned technician.</div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelWoModal">Cancel</button>
+            <button class="btn-modal-submit" id="submitWoForm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Create Manual Work Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST (Create) -->
+<div class="mx-toast-success" id="wo-toast">
+    <span class="toast-icon">✅</span>
+    Work order created successfully!
+</div>
+
+<!-- SUCCESS TOAST (Update) -->
+<div class="mx-toast-success" id="wo-update-toast" style="top:80px;border-left-color:#2B7ED4;">
+    <span class="toast-icon">💾</span>
+    Work order updated successfully!
+</div>
+
+<!-- ═══════════════════════════════════
+     VIEW DETAILS MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woDetailsModal" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(43,126,212,.10);color:var(--mx-blue);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="details-modal-title">Work Order Details</div>
+                    <div class="modal-subtitle" id="details-modal-subtitle">#WO-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeDetailsModal" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" id="detailsModalBody" style="max-height:500px;overflow-y:auto;">
+            <div style="display:grid;gap:16px;">
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Equipment / Asset</label>
+                    <p id="details-asset" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Description</label>
+                    <p id="details-description" style="margin:4px 0 0;font-size:14px;line-height:1.6;">-</p>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Source</label>
+                        <p id="details-source" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Status</label>
+                        <p id="details-status" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Assigned To</label>
+                        <p id="details-technician" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Priority</label>
+                        <p id="details-priority" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Created By</label>
+                        <p id="details-created-by" style="margin:4px 0 0;font-size:14px;font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Start Date</label>
+                        <p id="details-start-date" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--mx-muted);text-transform:uppercase;letter-spacing:0.5px;">Due Date</label>
+                        <p id="details-due-date" style="margin:4px 0 0;font-size:14px;">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="closeDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     UPDATE WORK ORDER MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woUpdateModal" role="dialog" aria-modal="true" aria-labelledby="upd-modal-title">
+    <div class="mx-modal">
+
+        <!-- Header -->
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(244,121,32,.10);color:var(--mx-orange);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="upd-modal-title">Edit Work Order</div>
+                    <div class="modal-subtitle" id="upd-modal-subtitle">Editing — #WO-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeUpdModal" aria-label="Close">×</button>
+        </div>
+
+        <!-- Warning Banner (for linked work orders) -->
+        <div id="upd-warning-banner" style="display:none;background:#FFF4E5;border-left:4px solid #F47920;padding:12px 16px;margin:0 24px 16px;border-radius:4px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F47920" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span style="font-size:13px;color:#8B5A00;font-weight:500;">This work order is derived from <span id="upd-request-link">Request #MR-XXXX</span>. Core fields are locked.</span>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+            <form id="updForm" novalidate>
+
+                <!-- A. Basic Info -->
+                <div class="modal-section-label">Basic Information</div>
+                <div class="modal-full">
+                    <label class="mx-label">Equipment / Asset <span class="required">*</span></label>
+                    <select class="mx-select" id="upd-equipment">
+                        <option value="">Select equipment…</option>
+                    </select>
+                    <div class="input-hint" id="upd-asset-hint" style="display:none;color:var(--mx-muted);">Locked - derived from maintenance request</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Issue Description <span class="required">*</span></label>
+                    <textarea class="mx-textarea" id="upd-issue" placeholder="Describe the issue…"></textarea>
+                    <div class="input-error" id="upd-err-issue">Please enter an issue description.</div>
+                    <div class="input-hint" id="upd-desc-hint" style="display:none;color:var(--mx-muted);">Locked - derived from maintenance request</div>
+                </div>
+                <div class="modal-full">
+                    <label class="mx-label">Priority <span class="required">*</span></label>
+                    <div class="priority-group">
+                        <div class="priority-radio low">
+                            <input type="radio" name="upd-priority" id="upd-p-low" value="Low" />
+                            <label for="upd-p-low">🟢 Low</label>
+                        </div>
+                        <div class="priority-radio med">
+                            <input type="radio" name="upd-priority" id="upd-p-med" value="Medium" />
+                            <label for="upd-p-med">🟠 Medium</label>
+                        </div>
+                        <div class="priority-radio high">
+                            <input type="radio" name="upd-priority" id="upd-p-high" value="High" />
+                            <label for="upd-p-high">🔴 High</label>
+                        </div>
+                    </div>
+                    <div class="input-hint" id="upd-priority-hint" style="display:none;color:var(--mx-muted);">Locked - derived from maintenance request</div>
+                </div>
+
+                <!-- B. Assignment -->
+                <div class="modal-section-label">Assignment</div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Assigned Technician <span class="required">*</span></label>
+                        <select class="mx-select" id="upd-tech">
+                            <option value="">Select technician…</option>
+                        </select>
+                    </div>
+                    <div>
+                        <!-- Status removed - use "Update Status" action instead -->
+                    </div>
+                </div>
+
+                <!-- C. Scheduling -->
+                <div class="modal-section-label">Scheduling</div>
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Start Date <span class="required">*</span></label>
+                        <input type="date" class="mx-input" id="upd-start" />
+                        <div class="input-error" id="upd-err-start">Please select a start date.</div>
+                    </div>
+                    <div>
+                        <label class="mx-label">Expected Completion <span class="required">*</span></label>
+                        <input type="date" class="mx-input" id="upd-end" />
+                        <div class="input-error" id="upd-err-end">Please select a completion date.</div>
+                    </div>
+                </div>
+
+                <!-- D. Notes -->
+                <div class="modal-section-label">Additional Notes</div>
+                <div class="modal-full" style="margin-bottom:0;">
+                    <label class="mx-label">Instructions / Remarks</label>
+                    <textarea class="mx-textarea" id="upd-notes" placeholder="Additional instructions…"></textarea>
+                    <div class="input-hint">Optional — additional context for the technician.</div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelUpdModal">Cancel</button>
+            <button class="btn-modal-submit" id="saveUpdForm" style="background:linear-gradient(135deg,var(--mx-orange),var(--mx-orange-d,#E86510));box-shadow:0 4px 14px rgba(244,121,32,.35);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     UPDATE STATUS MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woStatusModal" role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
+    <div class="mx-modal" style="max-width:500px;">
+
+        <!-- Header -->
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(46,184,92,.10);color:var(--mx-green);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="status-modal-title">Update Work Order Status</div>
+                    <div class="modal-subtitle" id="status-modal-subtitle">#WO-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeStatusModal" aria-label="Close">×</button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+            <form id="statusForm" novalidate>
+
+                <!-- Current Status Info -->
+                <div style="background:#F0F4F8;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font-size:13px;font-weight:600;color:var(--mx-muted);">Current Status:</span>
+                        <span id="status-current-badge" class="badge badge-pending">Open</span>
+                    </div>
+                </div>
+
+                <!-- New Status -->
+                <div class="modal-full">
+                    <label class="mx-label">New Status <span class="required">*</span></label>
+                    <select class="mx-select" id="status-new" required>
+                        <option value="">Select new status…</option>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <div class="input-error" id="status-err-new">Please select a new status.</div>
+                    <div class="input-hint" id="status-hint" style="display:none;color:var(--mx-blue);margin-top:8px;">
+                        <strong>Allowed transitions:</strong> <span id="status-allowed-transitions"></span>
+                    </div>
+                </div>
+
+                <!-- Actual Completion (shown only when status = Completed) -->
+                <div class="modal-full" id="status-actual-completion-container" style="display:none;">
+                    <label class="mx-label">Actual Completion Date <span class="required">*</span></label>
+                    <input type="date" class="mx-input" id="status-actual-completion" />
+                    <div class="input-error" id="status-err-completion">Actual completion date is required when marking as completed.</div>
+                    <div class="input-hint">This date will be recorded as the final completion date.</div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelStatusModal">Cancel</button>
+            <button class="btn-modal-submit" id="saveStatusForm" style="background:linear-gradient(135deg,var(--mx-green),#1E9E5A);box-shadow:0 4px 14px rgba(46,184,92,.35);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
+                Update Status
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/work-orders.js" asp-append-version="true"></script>
+}

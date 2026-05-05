@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — MaintenX</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/maintenx-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/maintenx-user.css" asp-append-version="true" />
+</head>
+<body>
+<div class="admin-shell">
+
+    <!-- ═══════════ USER SIDEBAR ═══════════ -->
+    <aside class="sidebar user-sidebar">
+
+        <!-- Logo -->
+        <div class="sidebar-logo">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="18" stroke="white" stroke-width="5" fill="none"/>
+                <path d="M20 32 L28 40 L44 22" stroke="#F47920" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+            <span class="logo-text">Mainten<span>X</span></span>
+        </div>
+
+        <!-- User greeting card -->
+        <div class="sidebar-greeting">
+            <div class="greeting-avatar">JD</div>
+            <div class="greeting-text">
+                <div class="greeting-hi">Hello, Juan! 👋</div>
+                <div class="greeting-role">Staff / User</div>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Menu</div>
+
+            <a href="/UserDashboard" class="nav-item @(ViewData["Active"]?.ToString() == "Dashboard" ? "active" : "")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Dashboard
+            </a>
+
+            <a href="/UserDashboard/MyRequests" class="nav-item @(ViewData["Active"]?.ToString() == "MyRequests" ? "active" : "")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                My Requests
+                <span class="nav-badge">3</span>
+            </a>
+
+            <a href="/UserDashboard/SubmitRequest" class="nav-item @(ViewData["Active"]?.ToString() == "SubmitRequest" ? "active" : "")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                Submit Request
+            </a>
+
+            <a href="/UserDashboard/Notifications" class="nav-item @(ViewData["Active"]?.ToString() == "Notifications" ? "active" : "")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                Notifications
+                <span class="nav-badge">2</span>
+            </a>
+        </nav>
+
+        <!-- Logout -->
+        <div class="sidebar-logout">
+            <form asp-area="Identity" asp-page="/Account/Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="logout-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Sign Out
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- ═══════════ MAIN ═══════════ -->
+    <div class="admin-main content-with-sidebar">
+
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>@(ViewData["Title"] ?? "Dashboard")</h1>
+                <div class="breadcrumb">
+                    <a href="/UserDashboard">Home</a> &rsaquo; @(ViewData["Title"] ?? "Dashboard")
+                </div>
+            </div>
+            <div class="header-right">
+                <!-- Search -->
+                <div class="header-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" placeholder="Search requests…" />
+                </div>
+                <!-- Notifications -->
+                <a href="/UserDashboard/Notifications" class="btn-icon" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    <span class="notif-dot"></span>
+                </a>
+                <!-- User -->
+                <div class="header-user">
+                    <div class="h-avatar">JD</div>
+                    <span class="h-name">Juan Dela Cruz</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="admin-content">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

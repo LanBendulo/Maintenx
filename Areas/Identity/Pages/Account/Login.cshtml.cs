@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
@@ -14,18 +14,24 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using IT15_Project.Models;
 
 namespace IT15_Project.Areas.Identity.Pages.Account
 {
     public class LoginModel : PageModel
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly ILogger<LoginModel> _logger;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser>  _userManager;
+        private readonly ILogger<LoginModel>        _logger;
 
-        public LoginModel(SignInManager<IdentityUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser>  userManager,
+            ILogger<LoginModel>        logger)
         {
             _signInManager = signInManager;
-            _logger = logger;
+            _userManager   = userManager;
+            _logger        = logger;
         }
 
         /// <summary>
@@ -115,7 +121,13 @@ namespace IT15_Project.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
-                    return LocalRedirect(returnUrl);
+
+                    // ── Role-based redirect ──────────────────────────────
+                    var user = await _userManager.FindByEmailAsync(Input.Email);
+                    if (user != null && await _userManager.IsInRoleAsync(user, "Admin"))
+                        return Redirect("/admin/dashboard");
+
+                    return RedirectToAction("Index", "UserDashboard");
                 }
                 if (result.RequiresTwoFactor)
                 {
