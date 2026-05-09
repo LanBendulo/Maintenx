@@ -299,15 +299,23 @@ namespace IT15_Project.Controllers
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
+                // Return structured field-specific errors for AJAX handling
+                var fieldErrors = new Dictionary<string, string>();
+                
+                foreach (var key in ModelState.Keys)
+                {
+                    var errors = ModelState[key]?.Errors;
+                    if (errors != null && errors.Count > 0)
+                    {
+                        var fieldName = key.Split('.').Last(); // Get field name without prefix
+                        fieldErrors[fieldName] = errors.First().ErrorMessage;
+                    }
+                }
                 
                 return BadRequest(new { 
                     success = false, 
-                    errors = errors,
-                    message = "Validation failed: " + string.Join(", ", errors)
+                    errors = fieldErrors,
+                    message = "Validation failed. Please check the form fields."
                 });
             }
 
@@ -446,32 +454,85 @@ namespace IT15_Project.Controllers
             return Ok(workOrders);
         }
 
+        /// <summary>
+        /// Get maintenance request details for conversion to work order
+        /// Used when navigating from maintenance requests page with convertRequestId parameter
+        /// </summary>
         [HttpGet]
-        [Route("assets/list")]
-        public async Task<IActionResult> GetAssets()
+        [Route("work-orders/request-details/{id}")]
+        public async Task<IActionResult> GetRequestDetailsForConversion(int id)
         {
             try
             {
                 // TENANT-AWARE: Filter by current company
                 var companyId = _tenantService.GetCurrentCompanyId();
                 
-                var assets = await _context.Assets
-                    .Where(a => a.CompanyId == companyId && a.Status != "Retired")  // TENANT FILTER
-                    .Select(a => new { value = a.AssetId, text = a.AssetName })
-                    .ToListAsync();
-                
-                return Ok(assets);
+                var request = await _context.MaintenanceRequests
+                    .Where(mr => mr.RequestId == id && mr.CompanyId == companyId)  // TENANT FILTER
+                    .Include(mr => mr.Asset)
+                    .Include(mr => mr.RequestedByPersonnel)
+                    .Include(mr => mr.WorkOrder)
+                    .FirstOrDefaultAsync();
+
+                if (request == null)
+                {
+                    return NotFound(new { 
+                        success = false, 
+                        message = "Maintenance request not found or you don't have permission to access it." 
+                    });
+                }
+
+                // Check if already converted
+                if (request.WorkOrder != null)
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "This request has already been converted to a work order.",
+                        workOrderId = request.WorkOrder.WorkOrderId
+                    });
+                }
+
+                // Check if approved
+                if (request.Status != "Approved")
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Only approved requests can be converted. Current status: {request.Status}" 
+                    });
+                }
+
+                // Return request details for conversion
+                var result = new
+                {
+                    success = true,
+                    requestId = request.RequestId,
+                    requestNumber = request.RequestNumber,
+                    title = request.Title,
+                    description = request.Description,
+                    assetId = request.AssetId,
+                    assetName = request.Asset?.AssetName ?? "Unknown Asset",
+                    category = request.Category,
+                    priority = request.Priority,
+                    requesterName = request.RequestedByPersonnel?.FullName ?? "Unknown",
+                    createdAt = request.CreatedAt
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { 
                     success = false, 
-                    message = "Failed to load assets", 
-                    error = ex.Message,
-                    innerError = ex.InnerException?.Message
+                    message = "An error occurred while loading the request details.", 
+                    error = ex.Message 
                 });
             }
         }
+
+        /// <summary>
+        /// REMOVED: Duplicate route - use AssetController.GetAssetsList() at /admin/assets/list instead
+        /// This endpoint was causing AmbiguousMatchException with PreventiveMaintenanceController
+        /// </summary>
 
         [HttpGet]
         [Route("technicians/list")]

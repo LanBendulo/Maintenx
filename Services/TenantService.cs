@@ -28,35 +28,70 @@ namespace IT15_Project.Services
 
         /// <summary>
         /// Gets the current user's CompanyId from their ApplicationUser record
+        /// Returns null for SuperAdmin users (platform-level access)
+        /// Returns CompanyId for tenant users (company-scoped access)
         /// </summary>
-        public int GetCurrentCompanyId()
+        public int? GetCurrentCompanyIdNullable()
         {
             var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(userId))
             {
-                // If no user is authenticated, return default company (for seeding/admin operations)
-                return 1;
+                return null;
             }
 
             var user = _context.Users.FirstOrDefault(u => u.Id == userId);
 
             if (user == null)
             {
-                // User not found, return default company
-                return 1;
+                return null;
             }
 
+            // Return null for SuperAdmin, CompanyId for tenant users
             return user.CompanyId;
         }
 
         /// <summary>
+        /// Gets the current user's CompanyId from their ApplicationUser record
+        /// Returns 1 as fallback for backward compatibility with existing code
+        /// Use GetCurrentCompanyIdNullable() for SuperAdmin-aware code
+        /// </summary>
+        public int GetCurrentCompanyId()
+        {
+            var companyId = GetCurrentCompanyIdNullable();
+
+            if (!companyId.HasValue)
+            {
+                // If no CompanyId (SuperAdmin or unauthenticated), return default
+                return 1;
+            }
+
+            return companyId.Value;
+        }
+
+        /// <summary>
+        /// Checks if the current user is a SuperAdmin (platform-level access)
+        /// </summary>
+        public bool IsSuperAdmin()
+        {
+            var companyId = GetCurrentCompanyIdNullable();
+            return !companyId.HasValue;
+        }
+
+        /// <summary>
         /// Gets the current user's Company information
+        /// Returns null for SuperAdmin users
         /// </summary>
         public async Task<Company?> GetCurrentCompanyAsync()
         {
-            var companyId = GetCurrentCompanyId();
-            return await _context.Companies.FindAsync(companyId);
+            var companyId = GetCurrentCompanyIdNullable();
+            
+            if (!companyId.HasValue)
+            {
+                return null; // SuperAdmin has no company
+            }
+
+            return await _context.Companies.FindAsync(companyId.Value);
         }
 
         /// <summary>

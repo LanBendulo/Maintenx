@@ -68,5 +68,6 @@ namespace IT15_Project.Models
         public virtual ICollection<WorkOrder> WorkOrders { get; set; } = new List<WorkOrder>();
         public virtual ICollection<MaintenanceRequest> MaintenanceRequests { get; set; } = new List<MaintenanceRequest>();
         public virtual ICollection<Personnel> Personnel { get; set; } = new List<Personnel>();
+        public virtual ICollection<CompanySubscription> Subscriptions { get; set; } = new List<CompanySubscription>();
     }
 }

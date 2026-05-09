@@ -1,0 +1,304 @@
+@model IT15_Project.Models.ViewModels.PersonnelIndexViewModel
+@{
+    ViewData["Title"] = "Personnel Management";
+    ViewData["Active"] = "Personnel";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/maintenx-role-badges.css" asp-append-version="true" />
+
+<!-- ══════════════════════════════════════
+     ROW 1 — SUMMARY CARDS
+════════════════════════════════════════ -->
+<div class="stats-grid">
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.TotalPersonnel</span>
+        </div>
+        <div class="stat-value">@Model.TotalPersonnel.ToString("N0")</div>
+        <div class="stat-label">Total Personnel</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.ActivePersonnel</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@Model.ActivePersonnel</div>
+        <div class="stat-label">Active Personnel</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.TechnicianCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@Model.TechnicianCount</div>
+        <div class="stat-label">Technicians</div>
+    </div>
+
+    <div class="stat-card purple">
+        <div class="stat-top">
+            <div class="stat-icon purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.ContractorCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-purple)">@Model.ContractorCount</div>
+        <div class="stat-label">Contractors</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════ -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Personnel Management</h1>
+        <p>Manage workforce records, assignments, and employment information</p>
+    </div>
+    @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+    {
+        <button class="btn-primary-mx" onclick="window.location.href='/admin/personnel/create'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+            Add Personnel
+        </button>
+    }
+</div>
+
+<!-- ══════════════════════════════════════
+     FILTER BAR
+════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search by name, employee ID…" />
+        </div>
+        <select class="filter-select" id="departmentFilter">
+            <option value="">All Departments</option>
+            @foreach (var dept in Model.Departments)
+            {
+                <option value="@dept">@dept</option>
+            }
+        </select>
+        <select class="filter-select" id="employmentTypeFilter">
+            <option value="">All Employment Types</option>
+            @foreach (var type in Model.EmploymentTypes)
+            {
+                <option value="@type">@type</option>
+            }
+        </select>
+        <select class="filter-select" id="statusFilter">
+            <option value="">All Status</option>
+            @foreach (var status in Model.Statuses)
+            {
+                <option value="@status">@status</option>
+            }
+        </select>
+        <select class="filter-select" id="accountFilter">
+            <option value="">All Accounts</option>
+            <option value="linked">Linked</option>
+            <option value="unlinked">Unlinked</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PERSONNEL TABLE
+════════════════════════════════════════ -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>All Personnel</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@Model.Personnel.Count</strong> personnel</span>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="personnelTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Employee ID</th>
+                    <th>Position</th>
+                    <th>Department</th>
+                    <th>Employment Type</th>
+                    <th>Status</th>
+                    <th>User Account</th>
+                    <th>Active WOs</th>
+                    <th>Hire Date</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var person in Model.Personnel)
+                {
+                    <tr data-personnel-id="@person.PersonnelId" 
+                        data-department="@person.Department" 
+                        data-employment-type="@person.EmploymentType" 
+                        data-status="@person.Status"
+                        data-account="@(person.HasUserAccount ? "linked" : "unlinked")">
+                        <td class="td-equip">
+                            <div class="td-staff">
+                                <div class="td-avatar" style="@(person.Status == "Active" ? "" : "opacity:0.5;")">
+                                    @(person.FullName.Length >= 2 ? person.FullName.Substring(0, 2).ToUpper() : person.FullName.ToUpper())
+                                </div>
+                                @person.FullName
+                            </div>
+                        </td>
+                        <td style="color:var(--mx-muted);font-size:13px;font-family:monospace;">@person.EmployeeId</td>
+                        <td>@(person.Position ?? "N/A")</td>
+                        <td style="color:var(--mx-muted);font-size:13px;">@(person.Department ?? "N/A")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(person.EmploymentType))
+                            {
+                                <span class="badge badge-employment-@person.EmploymentType.ToLower()">@person.EmploymentType</span>
+                            }
+                            else
+                            {
+                                <span style="color:var(--mx-muted);font-size:12px;">N/A</span>
+                            }
+                        </td>
+                        <td>
+                            @switch (person.Status)
+                            {
+                                case "Active":
+                                    <span class="badge badge-done">Active</span>
+                                    break;
+                                case "Inactive":
+                                    <span class="badge badge-cancelled">Inactive</span>
+                                    break;
+                                case "OnLeave":
+                                    <span class="badge badge-pending">On Leave</span>
+                                    break;
+                                case "Retired":
+                                    <span class="badge" style="background:rgba(100,116,139,.12);color:#64748b;">Retired</span>
+                                    break;
+                                case "Terminated":
+                                    <span class="badge" style="background:rgba(239,68,68,.12);color:#dc2626;">Terminated</span>
+                                    break;
+                                default:
+                                    <span class="badge">@person.Status</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            @if (person.HasUserAccount)
+                            {
+                                <a href="/admin/users/@person.UserEmail" class="badge badge-inprog" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                    </svg>
+                                    @person.UserEmail
+                                </a>
+                            }
+                            else
+                            {
+                                <span style="color:var(--mx-muted);font-size:12px;">No account</span>
+                            }
+                        </td>
+                        <td style="text-align:center;">
+                            @if (person.ActiveWorkOrders > 0)
+                            {
+                                <span class="badge badge-inprog">@person.ActiveWorkOrders</span>
+                            }
+                            else
+                            {
+                                <span style="color:var(--mx-muted);font-size:12px;">0</span>
+                            }
+                        </td>
+                        <td style="color:var(--mx-muted);font-size:12px;">
+                            @if (person.HireDate.HasValue)
+                            {
+                                @person.HireDate.Value.ToString("MMM dd, yyyy")
+                            }
+                            else
+                            {
+                                <span>N/A</span>
+                            }
+                        </td>
+                        <td style="text-align:right;">
+                            <div class="action-menu">
+                                <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                <div class="action-dropdown">
+                                    <a href="/admin/personnel/@person.PersonnelId">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        View Details
+                                    </a>
+                                    @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+                                    {
+                                        <a href="/admin/personnel/@person.PersonnelId/edit">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                            Edit
+                                        </a>
+                                        @if (!person.HasUserAccount)
+                                        {
+                                            <a href="#" onclick="openLinkUserModal(@person.PersonnelId, '@person.FullName'); return false;">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                                Link User Account
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a href="#" onclick="unlinkUser(@person.PersonnelId, '@person.FullName'); return false;" style="color:var(--mx-orange);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                                Unlink User
+                                            </a>
+                                        }
+                                        @if (person.Status == "Active")
+                                        {
+                                            <a href="#" onclick="archivePersonnel(@person.PersonnelId, '@person.FullName'); return false;" style="color:var(--mx-red);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Archive
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a href="#" onclick="reactivatePersonnel(@person.PersonnelId, '@person.FullName'); return false;" style="color:var(--mx-green);">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                                Reactivate
+                                            </a>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (!Model.Personnel.Any())
+    {
+        <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+            <p>No personnel found.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script src="~/js/personnel-management.js"></script>
+}

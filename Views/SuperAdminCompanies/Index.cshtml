@@ -1,0 +1,338 @@
+@model IEnumerable<dynamic>
+@{
+    ViewData["Title"] = "Companies";
+    ViewData["Active"] = "Companies";
+    Layout = "~/Views/Shared/_SuperAdminLayout.cshtml";
+    
+    var totalCompanies = Model.Count();
+    var activeCompanies = Model.Count(c => c.IsActive);
+    var suspendedCompanies = totalCompanies - activeCompanies;
+    var expiringCount = Model.Count(c => c.SubscriptionExpiry != null && ((DateTime)c.SubscriptionExpiry - DateTime.Now).Days <= 30 && ((DateTime)c.SubscriptionExpiry - DateTime.Now).Days >= 0);
+}
+
+<!-- ══════════════════════════════════════
+     SUMMARY CARDS
+════════════════════════════════════════ -->
+<div class="stats-grid" style="margin-bottom:24px;">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @totalCompanies</span>
+        </div>
+        <div class="stat-value">@totalCompanies</div>
+        <div class="stat-label">Total Companies</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @activeCompanies</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@activeCompanies</div>
+        <div class="stat-label">Active Companies</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">▲ @suspendedCompanies</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@suspendedCompanies</div>
+        <div class="stat-label">Suspended Companies</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">▲ @expiringCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@expiringCount</div>
+        <div class="stat-label">Expiring Soon</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FILTERS BAR
+════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:20px;">
+    <div style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <div style="flex:1;min-width:200px;">
+            <div class="header-search" style="width:100%;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search companies..." style="width:100%;" />
+            </div>
+        </div>
+        <div style="min-width:150px;">
+            <select id="statusFilter" style="width:100%;padding:10px 14px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;color:#1A2B4A;background:white;">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+            </select>
+        </div>
+        <div style="min-width:150px;">
+            <select id="planFilter" style="width:100%;padding:10px 14px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;color:#1A2B4A;background:white;">
+                <option value="">All Plans</option>
+                <option value="Free">Free</option>
+                <option value="Starter">Starter</option>
+                <option value="Professional">Professional</option>
+                <option value="Enterprise">Enterprise</option>
+            </select>
+        </div>
+        <button onclick="resetFilters()" style="padding:10px 16px;border:1px solid #E2E8F0;border-radius:8px;background:white;color:#64748B;font-size:13px;font-weight:500;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
+                <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     COMPANIES TABLE
+════════════════════════════════════════ -->
+<div class="card">
+    <div class="section-header">
+        <h2>All Companies</h2>
+        <a href="#" class="view-all" onclick="alert('Add Company feature coming soon'); return false;">+ Add Company</a>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div style="overflow-x:auto;">
+            <table class="mx-table" id="companiesTable">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Plan</th>
+                        <th>Users</th>
+                        <th>Assets</th>
+                        <th>Work Orders</th>
+                        <th>Expiry</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var company in Model)
+                    {
+                        <tr data-status="@(company.IsActive ? "active" : "suspended")" data-plan="@(company.SubscriptionPlan ?? "Free")">
+                            <td class="td-equip">
+                                <div style="display:flex;flex-direction:column;gap:4px;">
+                                    <a href="/superadmin/companies/@company.CompanyId" style="color:#667eea;font-weight:600;text-decoration:none;font-size:14px;">
+                                        @company.CompanyName
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(company.ContactEmail))
+                                    {
+                                        <span style="font-size:12px;color:var(--mx-muted);">@company.ContactEmail</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @{
+                                    var planColor = (company.SubscriptionPlan ?? "Free") switch
+                                    {
+                                        "Free" => "background:#F1F5F9;color:#64748B",
+                                        "Starter" => "background:#DBEAFE;color:#1E40AF",
+                                        "Professional" => "background:#EDE9FE;color:#6B21A8",
+                                        "Enterprise" => "background:#FEF3C7;color:#92400E",
+                                        _ => "background:#F1F5F9;color:#64748B"
+                                    };
+                                }
+                                <span class="badge" style="@planColor;padding:4px 10px;font-size:11px;font-weight:600;">@(company.SubscriptionPlan ?? "Free")</span>
+                            </td>
+                            <td style="color:var(--mx-muted);font-size:13px;">
+                                <span style="font-weight:600;color:#1A2B4A;">@company.UserCount</span>
+                                @if (company.MaxUsers != null)
+                                {
+                                    <span style="color:var(--mx-muted);"> / @company.MaxUsers</span>
+                                }
+                            </td>
+                            <td style="color:var(--mx-muted);font-size:13px;">
+                                <span style="font-weight:600;color:#1A2B4A;">@company.AssetCount</span>
+                                @if (company.MaxAssets != null)
+                                {
+                                    <span style="color:var(--mx-muted);"> / @company.MaxAssets</span>
+                                }
+                            </td>
+                            <td style="color:var(--mx-muted);font-size:13px;">@company.WorkOrderCount</td>
+                            <td>
+                                @if (company.SubscriptionExpiry != null)
+                                {
+                                    DateTime expiryDate = company.SubscriptionExpiry;
+                                    var daysRemaining = (expiryDate - DateTime.Now).Days;
+                                    if (daysRemaining < 0)
+                                    {
+                                        <span class="badge" style="background:#FEE2E2;color:#991B1B;padding:4px 10px;font-size:11px;font-weight:600;">Expired</span>
+                                    }
+                                    else if (daysRemaining <= 30)
+                                    {
+                                        <span class="badge badge-warning" style="padding:4px 10px;font-size:11px;">@daysRemaining days</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size:12px;color:var(--mx-muted);">@expiryDate.ToString("MMM dd, yyyy")</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span style="font-size:12px;color:var(--mx-muted);">N/A</span>
+                                }
+                            </td>
+                            <td>
+                                @if (company.IsActive)
+                                {
+                                    <span class="badge badge-done">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-cancelled">Suspended</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="td-actions">
+                                    <a href="/superadmin/companies/@company.CompanyId" class="tbl-btn" title="View Details">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
+                                    @if (company.IsActive)
+                                    {
+                                        <button class="tbl-btn" onclick="suspendCompany(@company.CompanyId)" title="Suspend Company">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                            </svg>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="tbl-btn" onclick="reactivateCompany(@company.CompanyId)" title="Reactivate Company">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                                            </svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="padding:60px 20px;text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">🏢</div>
+            <h3 style="color:#1A2B4A;margin-bottom:8px;font-size:18px;">No Companies Yet</h3>
+            <p style="color:var(--mx-muted);margin-bottom:24px;">Start by adding your first company to the platform.</p>
+            <button onclick="alert('Add Company feature coming soon')" style="padding:12px 24px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+                + Add Company
+            </button>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+    // Filter functionality
+    document.getElementById('searchInput').addEventListener('input', filterTable);
+    document.getElementById('statusFilter').addEventListener('change', filterTable);
+    document.getElementById('planFilter').addEventListener('change', filterTable);
+
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const planFilter = document.getElementById('planFilter').value;
+        const rows = document.querySelectorAll('#companiesTable tbody tr');
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const status = row.dataset.status;
+            const plan = row.dataset.plan;
+
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = !statusFilter || status === statusFilter;
+            const matchesPlan = !planFilter || plan === planFilter;
+
+            row.style.display = matchesSearch && matchesStatus && matchesPlan ? '' : 'none';
+        });
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('planFilter').value = '';
+        filterTable();
+    }
+
+    async function suspendCompany(companyId) {
+        if (!confirm('Are you sure you want to suspend this company? Users will not be able to log in.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/superadmin/companies/${companyId}/suspend`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Company suspended successfully');
+                location.reload();
+            } else {
+                alert('Failed to suspend company');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred');
+        }
+    }
+
+    async function reactivateCompany(companyId) {
+        if (!confirm('Are you sure you want to reactivate this company?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/superadmin/companies/${companyId}/reactivate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Company reactivated successfully');
+                location.reload();
+            } else {
+                alert('Failed to reactivate company');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred');
+        }
+    }
+</script>
+}

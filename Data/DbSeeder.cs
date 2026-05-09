@@ -19,8 +19,8 @@ namespace IT15_Project.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Define roles (new RBAC structure)
-            string[] roleNames = { "Owner", "Admin", "Technician", "User" };
+            // Define roles (RBAC structure + SuperAdmin)
+            string[] roleNames = { "SuperAdmin", "Owner", "Admin", "Technician", "User" };
 
             // Create roles if they don't exist
             foreach (var roleName in roleNames)
@@ -33,11 +33,80 @@ namespace IT15_Project.Data
                 }
             }
 
+            // Seed SuperAdmin account (platform-level, CompanyId = null)
+            await SeedSuperAdminAsync(userManager);
+
             // Ensure test company exists
             await EnsureTestCompanyAsync(context);
 
             // Create test accounts for each role
             await CreateRoleTestAccountsAsync(userManager, context);
+        }
+
+        /// <summary>
+        /// Seeds the initial SuperAdmin account for platform management
+        /// SuperAdmin has CompanyId = null and manages the entire SaaS platform
+        /// </summary>
+        private static async Task SeedSuperAdminAsync(UserManager<ApplicationUser> userManager)
+        {
+            const string superAdminEmail = "superadmin@maintenx.com";
+            const string superAdminPassword = "SuperAdmin123!";
+
+            // Check if SuperAdmin already exists
+            var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+
+            if (superAdmin == null)
+            {
+                // Create SuperAdmin user with CompanyId = null
+                superAdmin = new ApplicationUser
+                {
+                    UserName = superAdminEmail,
+                    Email = superAdminEmail,
+                    EmailConfirmed = true,
+                    CompanyId = null, // CRITICAL: SuperAdmin is NOT tenant-scoped
+                    FullName = "Super Administrator",
+                    LockoutEnabled = false // SuperAdmin cannot be locked out
+                };
+
+                var result = await userManager.CreateAsync(superAdmin, superAdminPassword);
+
+                if (result.Succeeded)
+                {
+                    // Assign SuperAdmin role
+                    await userManager.AddToRoleAsync(superAdmin, "SuperAdmin");
+                    
+                    Console.WriteLine("════════════════════════════════════════════════════════");
+                    Console.WriteLine("✓ SUPERADMIN ACCOUNT CREATED");
+                    Console.WriteLine("════════════════════════════════════════════════════════");
+                    Console.WriteLine($"  Email:    {superAdminEmail}");
+                    Console.WriteLine($"  Password: {superAdminPassword}");
+                    Console.WriteLine($"  Role:     SuperAdmin");
+                    Console.WriteLine($"  CompanyId: NULL (Platform-level access)");
+                    Console.WriteLine("════════════════════════════════════════════════════════");
+                    Console.WriteLine("  IMPORTANT: Change this password after first login!");
+                    Console.WriteLine("  Access:    /superadmin/dashboard");
+                    Console.WriteLine("════════════════════════════════════════════════════════");
+                }
+                else
+                {
+                    Console.WriteLine("✗ Failed to create SuperAdmin account:");
+                    foreach (var error in result.Errors)
+                    {
+                        Console.WriteLine($"  - {error.Description}");
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine($"SuperAdmin account already exists: {superAdminEmail}");
+                
+                // Verify SuperAdmin has correct configuration
+                if (superAdmin.CompanyId.HasValue)
+                {
+                    Console.WriteLine("⚠ WARNING: SuperAdmin has CompanyId set. This should be NULL!");
+                    Console.WriteLine("  Please fix this manually in the database.");
+                }
+            }
         }
 
         /// <summary>

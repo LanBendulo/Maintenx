@@ -37,23 +37,45 @@
     // LOAD ASSETS
     // ========================================
     async function loadAssets() {
+        console.log('[ASSET LOADING] Starting asset load...');
+        
         try {
-            const response = await fetch('/admin/assets/list');
-            if (!response.ok) throw new Error('Failed to load assets');
+            const response = await fetch('/admin/maintenance-requests/available-assets');
+            
+            console.log('[ASSET LOADING] Response status:', response.status);
+            console.log('[ASSET LOADING] Response ok:', response.ok);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[ASSET LOADING] Error response:', errorText);
+                throw new Error(`Failed to load assets: ${response.status} ${response.statusText}`);
+            }
             
             const assets = await response.json();
+            console.log('[ASSET LOADING] Loaded assets:', assets.length);
+            
             const select = document.getElementById('mr-asset');
             
             select.innerHTML = '<option value="">Select equipment…</option>';
             
-            assets.forEach(asset => {
+            if (assets.length === 0) {
+                console.warn('[ASSET LOADING] No assets available');
                 const option = document.createElement('option');
-                option.value = asset.value;
-                option.textContent = asset.text;
+                option.value = '';
+                option.textContent = 'No equipment available';
+                option.disabled = true;
                 select.appendChild(option);
-            });
+            } else {
+                assets.forEach(asset => {
+                    const option = document.createElement('option');
+                    option.value = asset.value;
+                    option.textContent = asset.text;
+                    select.appendChild(option);
+                });
+                console.log('[ASSET LOADING] Successfully populated dropdown');
+            }
         } catch (error) {
-            console.error('Error loading assets:', error);
+            console.error('[ASSET LOADING] Error loading assets:', error);
             showToast('Failed to load equipment list', 'error');
         }
     }
@@ -275,34 +297,20 @@
     // ========================================
     // CONVERT TO WORK ORDER
     // ========================================
+    // ========================================
+    // CONVERT TO WORK ORDER
+    // ========================================
     document.addEventListener('click', async function(e) {
         if (e.target.closest('.action-convert-mr')) {
             e.preventDefault();
             const link = e.target.closest('.action-convert-mr');
             const mrId = link.getAttribute('data-mr-id');
             
-            try {
-                // Load the maintenance request details
-                const response = await fetch(`/admin/maintenance-requests/${mrId}`);
-                if (!response.ok) throw new Error('Failed to load request');
-                
-                const mr = await response.json();
-                
-                // Redirect to work orders page with pre-fill data
-                sessionStorage.setItem('convertFromRequest', JSON.stringify({
-                    maintenanceRequestId: mr.requestId,
-                    requestNumber: mr.requestNumber,
-                    assetId: mr.assetId,
-                    assetName: mr.assetName,
-                    description: `${mr.title}\n\n${mr.description}`,
-                    priority: mr.priority
-                }));
-                
-                window.location.href = '/admin/work-orders';
-            } catch (error) {
-                console.error('Error loading request:', error);
-                showToast('Failed to load request details', 'error');
-            }
+            console.log('=== CONVERT REQUEST TO WORK ORDER ===');
+            console.log('Request ID:', mrId);
+            
+            // Redirect to work orders page with convertRequestId parameter
+            window.location.href = `/admin/work-orders?convertRequestId=${mrId}`;
         }
     });
 

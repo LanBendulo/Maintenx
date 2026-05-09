@@ -35,6 +35,11 @@ namespace IT15_Project.Data
         public DbSet<Part> Parts { get; set; }
         public DbSet<WorkOrderPart> WorkOrderParts { get; set; }
         public DbSet<WorkOrderCost> WorkOrderCosts { get; set; }
+        public DbSet<AssetStatusHistory> AssetStatusHistories { get; set; }
+
+        // SaaS Platform Tables
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+        public DbSet<CompanySubscription> CompanySubscriptions { get; set; }
 
         /// <summary>
         /// Gets the current user's CompanyId from HttpContext
@@ -78,12 +83,13 @@ namespace IT15_Project.Data
 
         /// <summary>
         /// Automatically sets CompanyId on new entities that have a CompanyId property
+        /// Skips SuperAdmin users (CompanyId = null)
         /// </summary>
         private void SetCompanyIdOnNewEntities()
         {
             var currentCompanyId = GetCurrentCompanyId();
             if (!currentCompanyId.HasValue)
-                return; // Skip if no user context (e.g., during seeding)
+                return; // Skip if no user context (e.g., during seeding) or SuperAdmin
 
             var entries = ChangeTracker.Entries()
                 .Where(e => e.State == EntityState.Added);
@@ -92,6 +98,10 @@ namespace IT15_Project.Data
             {
                 // Skip Company entity itself (it doesn't need CompanyId set)
                 if (entry.Entity is Company)
+                    continue;
+
+                // Skip ApplicationUser entity (CompanyId is set explicitly, can be null for SuperAdmin)
+                if (entry.Entity is ApplicationUser)
                     continue;
 
                 // Check if entity has CompanyId property
@@ -154,6 +164,19 @@ namespace IT15_Project.Data
                 .HasMany(c => c.Personnel)
                 .WithOne(p => p.Company)
                 .HasForeignKey(p => p.CompanyId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<Company>()
+                .HasMany(c => c.Subscriptions)
+                .WithOne(s => s.Company)
+                .HasForeignKey(s => s.CompanyId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure SubscriptionPlan relationships
+            builder.Entity<SubscriptionPlan>()
+                .HasMany(sp => sp.CompanySubscriptions)
+                .WithOne(cs => cs.Plan)
+                .HasForeignKey(cs => cs.PlanId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure Personnel relationships

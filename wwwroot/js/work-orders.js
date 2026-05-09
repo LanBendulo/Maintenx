@@ -1,158 +1,151 @@
 // Work Orders Page - Database Integration
+// Modal lifecycle is handled by work-order-modal.js
 
 (function () {
     'use strict';
 
-    // ========================================
-    // MODAL MANAGEMENT
-    // ========================================
-    const overlay = document.getElementById('woModal');
-    const openBtn = document.getElementById('openWoModal');
-    const closeBtn = document.getElementById('closeWoModal');
-    const cancelBtn = document.getElementById('cancelWoModal');
+    console.log('=== Work Orders JS Initializing ===');
+
+    // Cache form elements
     const submitBtn = document.getElementById('submitWoForm');
-    const toast = document.getElementById('wo-toast');
     const form = document.getElementById('woForm');
 
-    function openModal() {
-        console.log('=== Opening Work Order Modal ===');
-        overlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        
-        // Check if we're converting from a maintenance request
-        const convertData = sessionStorage.getItem('convertFromRequest');
-        console.log('Convert data from sessionStorage:', convertData);
-        
-        if (convertData) {
-            const data = JSON.parse(convertData);
-            console.log('Parsed conversion data:', data);
-            sessionStorage.removeItem('convertFromRequest');
-            
-            // Update modal title
-            document.getElementById('modal-title').textContent = 'Convert Request to Work Order';
-            document.querySelector('.modal-subtitle').textContent = `Converting ${data.requestNumber} to a work order`;
-            
-            // Load assets and technicians first, then pre-fill
-            console.log('Loading assets and technicians for conversion...');
-            Promise.all([loadAssets(), loadTechnicians()]).then(() => {
-                console.log('Assets and technicians loaded. Pre-filling form...');
-                // Pre-fill and lock fields after assets are loaded
-                setTimeout(() => {
-                    // Asset (read-only)
-                    const assetSelect = document.getElementById('wo-equipment');
-                    console.log('Asset select element:', assetSelect);
-                    console.log('Available options:', Array.from(assetSelect.options).map(o => ({value: o.value, text: o.text})));
-                    console.log('Setting asset to:', data.assetId, 'Asset name:', data.assetName);
-                    assetSelect.value = data.assetId;
-                    
-                    // Verify the asset was set
-                    if (!assetSelect.value || assetSelect.value === '') {
-                        console.error('Asset not found in dropdown. Available options:', 
-                            Array.from(assetSelect.options).map(o => ({value: o.value, text: o.text})));
-                        // If asset not found, add it manually
-                        console.log('Manually adding asset option...');
-                        const option = document.createElement('option');
-                        option.value = data.assetId;
-                        option.textContent = data.assetName;
-                        option.selected = true;
-                        assetSelect.appendChild(option);
-                        console.log('Asset option added manually');
-                    } else {
-                        console.log('Asset successfully set to:', assetSelect.value);
-                    }
-                    
-                    // Make it look disabled but keep it enabled so value is submitted
-                    // Store original event handlers
-                    assetSelect.dataset.locked = 'true';
-                    assetSelect.style.background = '#F0F4F8';
-                    assetSelect.style.color = '#495057';
-                    assetSelect.style.cursor = 'not-allowed';
-                    assetSelect.style.pointerEvents = 'none'; // Prevent interaction
-                    
-                    // Description (read-only)
-                    const descTextarea = document.getElementById('wo-issue');
-                    descTextarea.value = data.description;
-                    descTextarea.readOnly = true;
-                    descTextarea.style.background = '#F0F4F8';
-                    descTextarea.style.color = '#495057';
-                    descTextarea.style.cursor = 'not-allowed';
-                    
-                    // Priority (read-only)
-                    const priorityRadios = document.querySelectorAll('input[name="wo-priority"]');
-                    priorityRadios.forEach(radio => {
-                        if (radio.value === data.priority) {
-                            radio.checked = true;
-                        }
-                        // Make it look disabled but keep enabled
-                        radio.style.pointerEvents = 'none';
-                        radio.parentElement.style.opacity = '0.6';
-                        radio.parentElement.style.cursor = 'not-allowed';
-                    });
-                    
-                    // Store the request ID for submission
-                    form.dataset.maintenanceRequestId = data.maintenanceRequestId;
-                    
-                    // Update submit button text
-                    submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Convert to Work Order';
-                    
-                    console.log('Form pre-filled successfully');
-                }, 200);
-            }).catch(error => {
-                console.error('Error loading assets/technicians:', error);
-                showToast('Failed to load form data: ' + error.message, 'error');
-            });
-        } else {
-            console.log('No conversion data - opening as manual work order');
-            // Reset modal for manual work order
-            document.getElementById('modal-title').textContent = 'Create Manual Work Order';
-            document.querySelector('.modal-subtitle').textContent = 'Create a work order without a maintenance request';
-            delete form.dataset.maintenanceRequestId;
-            
-            // Load assets and technicians
-            console.log('Loading assets and technicians for manual work order...');
-            loadAssets();
-            loadTechnicians();
-            
-            // Reset submit button text
-            submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Create Manual Work Order';
-        }
+    if (!submitBtn || !form) {
+        console.error('❌ CRITICAL: Form elements missing!');
+        return;
     }
 
-    function closeModal() {
-        overlay.classList.remove('open');
-        document.body.style.overflow = '';
-        form.reset();
-        clearErrors();
+    console.log('✓ Form elements found');
+
+    // ========================================
+    // LISTEN FOR MODAL EVENTS
+    // ========================================
+    
+    // Handle conversion data prefill (triggered by work-order-modal.js)
+    document.addEventListener('prefillConversionData', async function(e) {
+        const data = e.detail;
+        console.log('=== Prefilling Conversion Data ===');
+        console.log('Conversion data:', data);
         
-        // Re-enable all fields
+        try {
+            // Load assets and technicians first, then pre-fill
+            console.log('Loading assets and technicians...');
+            await Promise.all([loadAssets(), loadTechnicians()]);
+            console.log('✓ Assets and technicians loaded successfully');
+            
+            // Now prefill - dropdowns are guaranteed to be populated
+            prefillConversionForm(data, submitBtn, form);
+            
+        } catch (error) {
+            console.error('Error loading assets/technicians:', error);
+            showToast('Failed to load form data: ' + error.message, 'error');
+            
+            // Re-enable submit button even on error
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Convert to Work Order';
+        }
+    });
+    
+    // Handle manual work order data load (triggered by work-order-modal.js)
+    document.addEventListener('loadManualWorkOrderData', async function() {
+        console.log('=== Loading Manual Work Order Data ===');
+        
+        try {
+            console.log('Loading assets and technicians...');
+            await Promise.all([loadAssets(), loadTechnicians()]);
+            console.log('✓ Manual work order data loaded successfully');
+        } catch (error) {
+            console.error('Error loading manual work order data:', error);
+            showToast('Failed to load form data: ' + error.message, 'error');
+        }
+    });
+
+    // Initialize date validation and filters
+    initializeDateValidation();
+    initializeFilters();
+
+    // ========================================
+    // PREFILL CONVERSION FORM
+    // ========================================
+    function prefillConversionForm(data, submitBtn, form) {
+        console.log('=== PREFILL DEBUG ===');
+        console.log('Conversion data:', data);
+        
+        // Asset (read-only)
         const assetSelect = document.getElementById('wo-equipment');
-        assetSelect.style.background = '';
-        assetSelect.style.color = '';
-        assetSelect.style.cursor = '';
-        assetSelect.style.pointerEvents = '';
-        delete assetSelect.dataset.locked;
+        console.log('Asset select element:', assetSelect);
+        console.log('Available asset options:', Array.from(assetSelect.options).map(o => ({value: o.value, text: o.text})));
+        console.log('Attempting to set asset to ID:', data.assetId, 'Name:', data.assetName);
         
+        // Verify option exists BEFORE assigning
+        const assetOptionExists = Array.from(assetSelect.options).some(o => o.value == data.assetId);
+        console.log('Asset option exists in dropdown:', assetOptionExists);
+        
+        if (!assetOptionExists) {
+            console.warn('⚠️ Asset ID', data.assetId, 'not found in dropdown options!');
+            console.warn('Available asset IDs:', Array.from(assetSelect.options).map(o => o.value));
+            console.warn('Requested asset ID type:', typeof data.assetId, 'Value:', data.assetId);
+            
+            // Add it manually as fallback
+            const option = document.createElement('option');
+            option.value = data.assetId;
+            option.textContent = data.assetName;
+            option.selected = true;
+            assetSelect.appendChild(option);
+            
+            console.log('✓ Asset option added manually');
+        } else {
+            // Option exists - set it
+            assetSelect.value = data.assetId;
+            console.log('✓ Asset successfully set to:', assetSelect.value);
+        }
+        
+        console.log('After setting - assetSelect.value:', assetSelect.value);
+        console.log('Selected option:', assetSelect.options[assetSelect.selectedIndex]);
+        
+        // CRITICAL: Mark as locked AFTER setting value
+        assetSelect.dataset.locked = 'true';
+        assetSelect.dataset.originalValue = assetSelect.value;
+        assetSelect.style.background = '#F0F4F8';
+        assetSelect.style.color = '#495057';
+        assetSelect.style.cursor = 'not-allowed';
+        assetSelect.style.pointerEvents = 'none';
+        
+        console.log('Asset field locked with value:', assetSelect.value);
+        
+        // Description (read-only)
         const descTextarea = document.getElementById('wo-issue');
-        descTextarea.readOnly = false;
-        descTextarea.style.background = '';
-        descTextarea.style.color = '';
-        descTextarea.style.cursor = '';
+        descTextarea.value = data.description;
+        descTextarea.readOnly = true;
+        descTextarea.style.background = '#F0F4F8';
+        descTextarea.style.color = '#495057';
+        descTextarea.style.cursor = 'not-allowed';
         
-        document.querySelectorAll('input[name="wo-priority"]').forEach(radio => {
-            radio.style.pointerEvents = '';
-            radio.parentElement.style.opacity = '';
-            radio.parentElement.style.cursor = '';
+        // Priority (read-only)
+        const priorityRadios = document.querySelectorAll('input[name="wo-priority"]');
+        priorityRadios.forEach(radio => {
+            if (radio.value === data.priority) {
+                radio.checked = true;
+            }
+            radio.style.pointerEvents = 'none';
+            radio.parentElement.style.opacity = '0.6';
+            radio.parentElement.style.cursor = 'not-allowed';
         });
         
-        delete form.dataset.maintenanceRequestId;
+        // Store the request ID for submission
+        form.dataset.maintenanceRequestId = data.maintenanceRequestId;
+        
+        // Update submit button text
+        submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Convert to Work Order';
+        
+        // Re-enable submit button after prefill completes
+        submitBtn.disabled = false;
+        
+        console.log('=== PREFILL COMPLETE ===');
+        console.log('Final equipment value:', assetSelect.value);
+        console.log('Form maintenanceRequestId:', form.dataset.maintenanceRequestId);
+        console.log('Submit button enabled:', !submitBtn.disabled);
     }
-
-    openBtn.addEventListener('click', openModal);
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) closeModal();
-    });
 
     // ========================================
     // LOAD ASSETS FROM DATABASE
@@ -222,14 +215,46 @@
     // ========================================
     async function loadTechnicians() {
         try {
-            const response = await fetch('/admin/technicians/list');
-            if (!response.ok) throw new Error('Failed to load technicians');
+            console.log('Loading technicians from /admin/technicians/list...');
+            
+            const response = await fetch('/admin/technicians/list', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+            
+            console.log('Technicians response status:', response.status);
+            console.log('Technicians response ok:', response.ok);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Technicians endpoint error:', response.status, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
             
             const technicians = await response.json();
+            console.log('Technicians loaded successfully:', technicians.length, 'items');
+            console.log('First technician:', technicians[0]);
+            
             const select = document.getElementById('wo-tech');
+            console.log('Technician select element found:', select !== null);
+            
+            if (!select) {
+                console.error('Technician select element not found!');
+                return;
+            }
             
             // Clear existing options except the first one
             select.innerHTML = '<option value="">Select technician…</option>';
+            
+            if (technicians.length === 0) {
+                console.warn('No technicians found in database.');
+                showToast('No technicians found. Please contact administrator.', 'error');
+                return;
+            }
             
             technicians.forEach(tech => {
                 const option = document.createElement('option');
@@ -237,9 +262,160 @@
                 option.textContent = tech.text;
                 select.appendChild(option);
             });
+            
+            console.log('Technicians dropdown populated successfully. Total options:', select.options.length);
+            console.log('All technician options:', Array.from(select.options).map(o => ({value: o.value, text: o.text})));
         } catch (error) {
             console.error('Error loading technicians:', error);
-            showToast('Failed to load technicians list', 'error');
+            console.error('Error stack:', error.stack);
+            showToast('Failed to load technicians list: ' + error.message, 'error');
+        }
+    }
+
+    // ========================================
+    // DATE VALIDATION & AUTO-CORRECTION
+    // ========================================
+    
+    // Date validation helper functions (accessible to validateForm)
+    function validateStartDate() {
+        const startDateInput = document.getElementById('wo-start');
+        const errorElement = document.getElementById('err-start');
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Clear previous errors
+        startDateInput.classList.remove('input-validation-error');
+        errorElement.style.display = 'none';
+        
+        const startDate = startDateInput.value;
+        
+        if (!startDate) {
+            startDateInput.classList.add('input-validation-error');
+            errorElement.textContent = 'Start date is required.';
+            errorElement.style.display = 'block';
+            return false;
+        }
+        
+        const startDateObj = new Date(startDate);
+        const todayObj = new Date(today);
+        
+        if (startDateObj < todayObj) {
+            startDateInput.classList.add('input-validation-error');
+            errorElement.textContent = 'Start date cannot be in the past.';
+            errorElement.style.display = 'block';
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function validateEndDate() {
+        const startDateInput = document.getElementById('wo-start');
+        const endDateInput = document.getElementById('wo-end');
+        const errorElement = document.getElementById('err-end');
+        
+        // Clear previous errors
+        endDateInput.classList.remove('input-validation-error');
+        errorElement.style.display = 'none';
+        
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        
+        if (!endDate) {
+            endDateInput.classList.add('input-validation-error');
+            errorElement.textContent = 'Expected completion is required.';
+            errorElement.style.display = 'block';
+            return false;
+        }
+        
+        if (!startDate) {
+            // Can't validate relationship without start date
+            return true;
+        }
+        
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        if (endDateObj <= startDateObj) {
+            endDateInput.classList.add('input-validation-error');
+            errorElement.textContent = 'Expected completion must be after the start date.';
+            errorElement.style.display = 'block';
+            return false;
+        }
+        
+        // Check duration doesn't exceed 365 days
+        const durationDays = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
+        if (durationDays > 365) {
+            endDateInput.classList.add('input-validation-error');
+            errorElement.textContent = 'Schedule duration cannot exceed 365 days.';
+            errorElement.style.display = 'block';
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function initializeDateValidation() {
+        const startDateInput = document.getElementById('wo-start');
+        const endDateInput = document.getElementById('wo-end');
+        
+        // Set minimum date to today for start date
+        const today = new Date().toISOString().split('T')[0];
+        startDateInput.setAttribute('min', today);
+        
+        // Initialize dates
+        startDateInput.value = today;
+        endDateInput.value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Real-time validation on start date change
+        startDateInput.addEventListener('change', function() {
+            validateStartDate();
+            
+            // Auto-correct: Update end date minimum
+            endDateInput.setAttribute('min', this.value);
+            
+            // Auto-correct: If end date is now before start date, adjust it
+            if (endDateInput.value && new Date(endDateInput.value) <= new Date(this.value)) {
+                const newEndDate = new Date(this.value);
+                newEndDate.setDate(newEndDate.getDate() + 1);
+                endDateInput.value = newEndDate.toISOString().split('T')[0];
+                
+                // Show helper message
+                showHelperMessage('Expected completion adjusted automatically.');
+            }
+            
+            // Auto-fill: If end date is empty, set to +7 days
+            if (!endDateInput.value) {
+                const autoEndDate = new Date(this.value);
+                autoEndDate.setDate(autoEndDate.getDate() + 7);
+                endDateInput.value = autoEndDate.toISOString().split('T')[0];
+            }
+            
+            // Revalidate end date
+            validateEndDate();
+        });
+        
+        // Real-time validation on end date change
+        endDateInput.addEventListener('change', function() {
+            validateEndDate();
+        });
+        
+        function showHelperMessage(message) {
+            // Create or update helper message
+            let helperDiv = document.getElementById('date-helper-message');
+            if (!helperDiv) {
+                helperDiv = document.createElement('div');
+                helperDiv.id = 'date-helper-message';
+                helperDiv.style.cssText = 'color: var(--mx-blue); font-size: 12px; margin-top: 4px; display: flex; align-items: center; gap: 4px;';
+                endDateInput.parentElement.appendChild(helperDiv);
+            }
+            
+            helperDiv.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> ${message}`;
+            helperDiv.style.display = 'flex';
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                helperDiv.style.display = 'none';
+            }, 3000);
         }
     }
 
@@ -250,51 +426,79 @@
         let isValid = true;
         clearErrors();
 
-        // Equipment
+        // Equipment - Skip validation if locked (conversion mode)
         const equipment = document.getElementById('wo-equipment');
-        if (!equipment.value) {
-            showError('err-equip');
+        const isLocked = equipment.dataset.locked === 'true';
+        
+        console.log('=== VALIDATION DEBUG ===');
+        console.log('Equipment value:', equipment.value);
+        console.log('Equipment locked:', isLocked);
+        console.log('Equipment options:', Array.from(equipment.options).map(o => ({value: o.value, text: o.text, selected: o.selected})));
+        
+        if (!isLocked && !equipment.value) {
+            showFieldError('wo-equipment', 'err-equip', 'Please select equipment.');
+            isValid = false;
+        } else if (isLocked && !equipment.value) {
+            // Locked but no value - this is the bug!
+            console.error('CRITICAL: Equipment is locked but has no value!');
+            showFieldError('wo-equipment', 'err-equip', 'Equipment not loaded. Please close and try again.');
             isValid = false;
         }
 
         // Issue Description
         const issue = document.getElementById('wo-issue');
         if (!issue.value.trim()) {
-            showError('err-issue');
+            showFieldError('wo-issue', 'err-issue', 'Please enter an issue description.');
             isValid = false;
         }
 
         // Technician
         const tech = document.getElementById('wo-tech');
+        console.log('Technician value:', tech.value);
         if (!tech.value) {
-            showError('err-tech');
+            showFieldError('wo-tech', 'err-tech', 'Please assign a technician.');
             isValid = false;
         }
 
-        // Start Date
-        const startDate = document.getElementById('wo-start');
-        if (!startDate.value) {
-            showError('err-start');
+        // Date validation
+        const startValid = validateStartDate();
+        const endValid = validateEndDate();
+        
+        if (!startValid || !endValid) {
             isValid = false;
         }
 
-        // End Date
-        const endDate = document.getElementById('wo-end');
-        if (!endDate.value) {
-            showError('err-end');
-            isValid = false;
-        }
+        console.log('=== VALIDATION RESULT:', isValid ? 'PASS' : 'FAIL', '===');
 
-        // Validate end date is after start date
-        if (startDate.value && endDate.value) {
-            if (new Date(endDate.value) < new Date(startDate.value)) {
-                showError('err-end');
-                document.getElementById('err-end').textContent = 'Completion date must be after start date.';
-                isValid = false;
+        // Disable/enable submit button based on validation
+        submitBtn.disabled = !isValid;
+        
+        // Scroll to first error if invalid
+        if (!isValid) {
+            const firstError = document.querySelector('.input-validation-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Add shake animation
+                firstError.classList.add('shake-animation');
+                setTimeout(() => firstError.classList.remove('shake-animation'), 500);
             }
         }
 
         return isValid;
+    }
+
+    function showFieldError(fieldId, errorId, message) {
+        const field = document.getElementById(fieldId);
+        const errorElement = document.getElementById(errorId);
+        
+        if (field) {
+            field.classList.add('input-validation-error');
+        }
+        
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
     }
 
     function showError(errorId) {
@@ -308,6 +512,36 @@
         document.querySelectorAll('.input-error').forEach(el => {
             el.style.display = 'none';
         });
+        document.querySelectorAll('.input-validation-error').forEach(el => {
+            el.classList.remove('input-validation-error');
+        });
+    }
+    
+    function displayBackendErrors(errors) {
+        // Handle structured field errors from backend
+        if (typeof errors === 'object' && !Array.isArray(errors)) {
+            // Field-specific errors
+            for (const [field, message] of Object.entries(errors)) {
+                const fieldMap = {
+                    'DateCreated': { fieldId: 'wo-start', errorId: 'err-start' },
+                    'DueDate': { fieldId: 'wo-end', errorId: 'err-end' },
+                    'AssetId': { fieldId: 'wo-equipment', errorId: 'err-equip' },
+                    'Description': { fieldId: 'wo-issue', errorId: 'err-issue' },
+                    'AssignedTo': { fieldId: 'wo-tech', errorId: 'err-tech' }
+                };
+                
+                const mapping = fieldMap[field];
+                if (mapping) {
+                    showFieldError(mapping.fieldId, mapping.errorId, message);
+                }
+            }
+            
+            // Scroll to first error
+            const firstError = document.querySelector('.input-validation-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
     }
 
     // ========================================
@@ -316,7 +550,19 @@
     submitBtn.addEventListener('click', async function (e) {
         e.preventDefault();
 
+        console.log('=== SUBMIT CLICKED ===');
+        
+        // Debug: Check equipment field state before validation
+        const equipmentField = document.getElementById('wo-equipment');
+        console.log('Equipment field state:');
+        console.log('  - value:', equipmentField.value);
+        console.log('  - locked:', equipmentField.dataset.locked);
+        console.log('  - originalValue:', equipmentField.dataset.originalValue);
+        console.log('  - selectedIndex:', equipmentField.selectedIndex);
+        console.log('  - selected option:', equipmentField.options[equipmentField.selectedIndex]);
+
         if (!validateForm()) {
+            console.log('Validation failed - aborting submit');
             return;
         }
 
@@ -324,12 +570,21 @@
         const priority = document.querySelector('input[name="wo-priority"]:checked');
         const startDate = document.getElementById('wo-start').value;
         const dueDate = document.getElementById('wo-end').value;
+        const equipmentValue = document.getElementById('wo-equipment').value;
+        const techValue = document.getElementById('wo-tech').value;
+        
+        console.log('=== FORM VALUES ===');
+        console.log('Equipment raw value:', equipmentValue);
+        console.log('Technician raw value:', techValue);
+        console.log('Priority:', priority ? priority.value : 'None');
+        console.log('Start date:', startDate);
+        console.log('Due date:', dueDate);
         
         // Build payload matching backend DTO exactly
         const workOrderData = {
-            AssetId: parseInt(document.getElementById('wo-equipment').value),
+            AssetId: parseInt(equipmentValue),
             Description: document.getElementById('wo-issue').value.trim(),
-            AssignedTo: parseInt(document.getElementById('wo-tech').value),
+            AssignedTo: parseInt(techValue),
             Priority: priority ? priority.value : 'Medium',
             DateCreated: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
             DueDate: dueDate ? new Date(dueDate).toISOString() : new Date().toISOString(),
@@ -337,7 +592,7 @@
             MaintenanceRequestId: form.dataset.maintenanceRequestId ? parseInt(form.dataset.maintenanceRequestId) : null
         };
 
-        console.log('=== Submitting Work Order ===');
+        console.log('=== PAYLOAD DEBUG ===');
         console.log('Work Order Data:', JSON.stringify(workOrderData, null, 2));
         console.log('AssetId:', workOrderData.AssetId, 'Type:', typeof workOrderData.AssetId, 'IsNaN:', isNaN(workOrderData.AssetId));
         console.log('AssignedTo:', workOrderData.AssignedTo, 'Type:', typeof workOrderData.AssignedTo, 'IsNaN:', isNaN(workOrderData.AssignedTo));
@@ -349,22 +604,31 @@
 
         // Validate data before sending
         if (isNaN(workOrderData.AssetId) || workOrderData.AssetId <= 0) {
-            console.error('Invalid AssetId:', workOrderData.AssetId);
+            console.error('❌ CRITICAL: Invalid AssetId:', workOrderData.AssetId);
+            console.error('Equipment field value was:', equipmentValue);
+            console.error('Equipment field state:', {
+                value: equipmentField.value,
+                locked: equipmentField.dataset.locked,
+                options: Array.from(equipmentField.options).map(o => ({value: o.value, text: o.text, selected: o.selected}))
+            });
             showToast('Please select equipment', 'error');
+            showFieldError('wo-equipment', 'err-equip', 'Invalid equipment selection. Please try again.');
             return;
         }
         
         if (isNaN(workOrderData.AssignedTo) || workOrderData.AssignedTo <= 0) {
-            console.error('Invalid AssignedTo:', workOrderData.AssignedTo);
+            console.error('❌ Invalid AssignedTo:', workOrderData.AssignedTo);
             showToast('Please assign a technician', 'error');
             return;
         }
         
         if (!workOrderData.Description || workOrderData.Description.length === 0) {
-            console.error('Description is empty');
+            console.error('❌ Description is empty');
             showToast('Please enter an issue description', 'error');
             return;
         }
+
+        console.log('✓ Pre-submit validation passed');
 
         // Disable submit button
         submitBtn.disabled = true;
@@ -395,7 +659,7 @@
             if (response.ok && result.success) {
                 // Success
                 console.log('Work order created successfully!');
-                closeModal();
+                WorkOrderModal.close();
                 showToast(result.message || 'Work order created successfully!', 'success');
                 
                 // Reload the page after 1.5 seconds to show the new work order
@@ -403,21 +667,19 @@
                     window.location.reload();
                 }, 1500);
             } else {
-                // Error - log for debugging
+                // Error - display inline validation errors
                 console.error('=== Server Error ===');
                 console.error('Response status:', response.status);
-                console.error('Response ok:', response.ok);
                 console.error('Server response:', result);
-                console.error('Success:', result.success);
-                console.error('Message:', result.message);
-                console.error('Errors:', result.errors);
                 
-                let errorMessage = result.message || 'Failed to create work order';
-                if (result.errors && Array.isArray(result.errors)) {
-                    errorMessage = result.errors.join(', ');
+                // Display field-specific errors if available
+                if (result.errors) {
+                    displayBackendErrors(result.errors);
+                } else {
+                    // Generic error message
+                    let errorMessage = result.message || 'Failed to create work order';
+                    showToast(errorMessage, 'error');
                 }
-                
-                showToast(errorMessage, 'error');
             }
         } catch (error) {
             console.error('Error creating work order:', error);
@@ -463,7 +725,8 @@
     // ========================================
     // FILTER FUNCTIONALITY
     // ========================================
-    const searchInput = document.getElementById('wo-search');
+    function initializeFilters() {
+        const searchInput = document.getElementById('wo-search');
     const statusFilter = document.getElementById('filter-status');
     const priorityFilter = document.getElementById('filter-priority');
     const techFilter = document.getElementById('filter-tech');
@@ -526,6 +789,8 @@
         });
     }
 
+    }
+
     // ========================================
     // ACTION MENU DROPDOWNS
     // ========================================
@@ -548,20 +813,6 @@
         document.querySelectorAll('.action-dropdown').forEach(dd => {
             dd.classList.remove('show');
         });
-    });
-
-    // ========================================
-    // AUTO-OPEN MODAL FOR CONVERSION
-    // ========================================
-    // Check if we're converting from a maintenance request on page load
-    window.addEventListener('DOMContentLoaded', function() {
-        const convertData = sessionStorage.getItem('convertFromRequest');
-        if (convertData) {
-            // Automatically open the modal
-            setTimeout(() => {
-                openModal();
-            }, 500);
-        }
     });
 
     // ========================================

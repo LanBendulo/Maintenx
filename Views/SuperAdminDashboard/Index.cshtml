@@ -1,0 +1,355 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Platform Dashboard";
+    ViewData["Active"] = "Dashboard";
+    Layout = "~/Views/Shared/_SuperAdminLayout.cshtml";
+}
+
+<!-- ══════════════════════════════════════
+     ROW 1 — SUMMARY CARDS
+════════════════════════════════════════ -->
+<div class="stats-grid">
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.TotalCompanies</span>
+        </div>
+        <div class="stat-value">@Model.TotalCompanies</div>
+        <div class="stat-label">Total Companies</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.ActiveCompanies</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@Model.ActiveCompanies</div>
+        <div class="stat-label">Active Companies</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.TotalUsers</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@Model.TotalUsers</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.TotalWorkOrders</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@Model.TotalWorkOrders</div>
+        <div class="stat-label">Total Work Orders</div>
+    </div>
+
+    <div class="stat-card purple">
+        <div class="stat-top">
+            <div class="stat-icon purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.ActiveSubscriptions</span>
+        </div>
+        <div class="stat-value" style="color:#667eea">@Model.ActiveSubscriptions</div>
+        <div class="stat-label">Active Subscriptions</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 2 — CHART + QUICK ACTIONS
+════════════════════════════════════════ -->
+<div class="mid-row">
+
+    <!-- Plan Distribution Chart -->
+    <div class="card">
+        <div class="section-header">
+            <h2>Subscription Plan Distribution</h2>
+            <a href="/superadmin/subscriptions/plans" class="view-all">View Plans</a>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="planChart"></canvas>
+        </div>
+        <div class="chart-legend">
+            @foreach (var plan in Model.PlanDistribution)
+            {
+                var color = plan.Plan switch
+                {
+                    "Free" => "#94A3B8",
+                    "Starter" => "#3B82F6",
+                    "Professional" => "#8B5CF6",
+                    "Enterprise" => "#F59E0B",
+                    _ => "#6B7280"
+                };
+                <div class="legend-item"><span class="legend-dot" style="background:@color"></span> @plan.Plan (@plan.Count)</div>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="section-header">
+            <h2>Quick Actions</h2>
+        </div>
+        <div class="quick-grid">
+            <a href="/superadmin/companies" class="quick-btn qb-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                View Companies
+            </a>
+            <a href="/superadmin/subscriptions" class="quick-btn qb-navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+                Subscriptions
+            </a>
+            <a href="/superadmin/subscriptions/plans" class="quick-btn qb-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                Manage Plans
+            </a>
+            <a href="/superadmin/analytics" class="quick-btn qb-orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                Analytics
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 3 — RECENT COMPANIES + ALERTS
+════════════════════════════════════════ -->
+<div class="lower-row">
+
+    <!-- Recent Companies -->
+    <div class="card">
+        <div class="section-header">
+            <h2>Recent Companies</h2>
+            <a href="/superadmin/companies" class="view-all">View All</a>
+        </div>
+
+        @if (Model.RecentCompanies.Count > 0)
+        {
+            <div style="overflow-x:auto;">
+                <table class="mx-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Plan</th>
+                            <th>Users</th>
+                            <th>Assets</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var company in Model.RecentCompanies)
+                        {
+                            <tr>
+                                <td class="td-equip">
+                                    <a href="/superadmin/companies/@company.CompanyId" style="color:#667eea;font-weight:600;text-decoration:none;">
+                                        @company.CompanyName
+                                    </a>
+                                </td>
+                                <td>
+                                    @{
+                                        var planColor = (company.SubscriptionPlan ?? "Free") switch
+                                        {
+                                            "Free" => "background:#F1F5F9;color:#64748B",
+                                            "Starter" => "background:#DBEAFE;color:#1E40AF",
+                                            "Professional" => "background:#EDE9FE;color:#6B21A8",
+                                            "Enterprise" => "background:#FEF3C7;color:#92400E",
+                                            _ => "background:#F1F5F9;color:#64748B"
+                                        };
+                                    }
+                                    <span class="badge" style="@planColor;padding:4px 10px;font-size:11px;font-weight:600;">@(company.SubscriptionPlan ?? "Free")</span>
+                                </td>
+                                <td style="color:var(--mx-muted)">@company.UserCount</td>
+                                <td style="color:var(--mx-muted)">@company.AssetCount</td>
+                                <td>
+                                    @if (company.IsActive)
+                                    {
+                                        <span class="badge badge-done">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-cancelled">Suspended</span>
+                                    }
+                                </td>
+                                <td style="color:var(--mx-muted);font-size:12px;">@company.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                <p>No companies yet.</p>
+            </div>
+        }
+    </div>
+
+    <!-- Alerts -->
+    <div class="card">
+        <div class="section-header">
+            <h2 style="color:var(--mx-orange)">⚠ Platform Alerts</h2>
+        </div>
+
+        @if (Model.ExpiringSubscriptions.Count > 0)
+        {
+            <div style="margin-bottom:20px;">
+                <div style="font-size:12px;font-weight:600;color:var(--mx-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">Expiring Subscriptions</div>
+                @foreach (var sub in Model.ExpiringSubscriptions)
+                {
+                    <div class="alert-item orange">
+                        <span class="alert-icon">🟠</span>
+                        <div class="alert-text">
+                            <div class="alert-title">@sub.CompanyName</div>
+                            <div class="alert-sub">@sub.SubscriptionPlan - Expires in @sub.DaysRemaining days</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.SuspendedCompanies.Count > 0)
+        {
+            <div>
+                <div style="font-size:12px;font-weight:600;color:var(--mx-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">Suspended Companies</div>
+                @foreach (var company in Model.SuspendedCompanies)
+                {
+                    <div class="alert-item red">
+                        <span class="alert-icon">🔴</span>
+                        <div class="alert-text">
+                            <div class="alert-title">@company.CompanyName</div>
+                            <div class="alert-sub">Suspended on @(company.UpdatedAt?.ToString("MMM dd, yyyy") ?? "N/A")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.ExpiringSubscriptions.Count == 0 && Model.SuspendedCompanies.Count == 0)
+        {
+            <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                <p>✅ No active alerts. Platform running smoothly!</p>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    // ── Donut Chart ──────────────────────────────
+    var ctx = document.getElementById('planChart').getContext('2d');
+    
+    // Get data from server
+    var planData = @Html.Raw(Json.Serialize(Model.PlanDistribution));
+    var chartLabels = planData.map(function(p) { return p.plan; });
+    var chartData = planData.map(function(p) { return p.count; });
+    var chartTotal = chartData.reduce(function(a, b) { return a + b; }, 0);
+
+    // Colors for plans
+    var chartColors = chartLabels.map(function(label) {
+        switch(label) {
+            case 'Free': return '#94A3B8';
+            case 'Starter': return '#3B82F6';
+            case 'Professional': return '#8B5CF6';
+            case 'Enterprise': return '#F59E0B';
+            default: return '#6B7280';
+        }
+    });
+
+    // Custom plugin: draws total in center of donut hole
+    var centerTextPlugin = {
+        id: 'centerText',
+        afterDraw: function(chart) {
+            var chartArea = chart.chartArea;
+            var cx  = (chartArea.left + chartArea.right)  / 2;
+            var cy  = (chartArea.top  + chartArea.bottom) / 2;
+            var ctx2 = chart.ctx;
+            ctx2.save();
+
+            // Big number
+            ctx2.font        = 'bold 34px "Plus Jakarta Sans", Inter, sans-serif';
+            ctx2.fillStyle   = '#1A2B4A';
+            ctx2.textAlign   = 'center';
+            ctx2.textBaseline = 'middle';
+            ctx2.fillText(chartTotal.toLocaleString(), cx, cy - 11);
+
+            // Subtitle label
+            ctx2.font      = '600 10.5px Inter, sans-serif';
+            ctx2.fillStyle = '#6B7A99';
+            ctx2.fillText('TOTAL COMPANIES', cx, cy + 14);
+
+            ctx2.restore();
+        }
+    };
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                data: chartData,
+                backgroundColor: chartColors,
+                borderWidth: 0,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            if (chartTotal === 0) return ' ' + c.label + ': 0';
+                            var pct = Math.round(c.parsed / chartTotal * 100);
+                            return ' ' + c.label + ': ' + c.parsed + ' (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [centerTextPlugin]
+    });
+})();
+</script>
+
+<style>
+    .stat-card.purple .stat-icon.purple {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+        color: #667eea;
+    }
+</style>
+}

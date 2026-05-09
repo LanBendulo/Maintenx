@@ -7,7 +7,7 @@ using IT15_Project.Services;
 
 namespace IT15_Project.Controllers
 {
-    [Authorize(Roles = "Owner,Admin,Technician")]
+    [Authorize(Roles = "Owner,Admin,Technician,User")]
     [Route("admin/assets")]
     public class AssetController : Controller
     {
@@ -115,6 +115,51 @@ namespace IT15_Project.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Failed to load categories", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get assets list for dropdowns - accessible by all authenticated users including Requesters
+        /// </summary>
+        [HttpGet]
+        [Route("list")]
+        [Authorize(Roles = "Owner,Admin,Technician,User")]
+        public async Task<IActionResult> GetAssetsList()
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                // LOG: Request received
+                var userId = User.Identity?.Name;
+                var userRoles = User.Claims
+                    .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                    .Select(c => c.Value)
+                    .ToList();
+                
+                Console.WriteLine($"[ASSET LIST] Request received from User: {userId}, CompanyId: {companyId}, Roles: {string.Join(", ", userRoles)}");
+
+                var assets = await _context.Assets
+                    .Where(a => a.CompanyId == companyId && a.Status == "Active")
+                    .OrderBy(a => a.AssetName)
+                    .Select(a => new { 
+                        value = a.AssetId, 
+                        text = a.AssetName,
+                        code = a.AssetCode,
+                        location = a.Location
+                    })
+                    .ToListAsync();
+
+                Console.WriteLine($"[ASSET LIST] Found {assets.Count} active assets for CompanyId: {companyId}");
+
+                return Ok(assets);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ASSET LIST ERROR] {ex.Message}");
+                Console.WriteLine($"[ASSET LIST ERROR] Stack: {ex.StackTrace}");
+                
+                return StatusCode(500, new { success = false, message = "Failed to load assets", error = ex.Message });
             }
         }
 

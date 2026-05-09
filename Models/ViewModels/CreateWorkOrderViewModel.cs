@@ -6,7 +6,7 @@ namespace IT15_Project.Models.ViewModels
     /// ViewModel for creating a new work order
     /// Can be created from a Maintenance Request (conversion) or manually
     /// </summary>
-    public class CreateWorkOrderViewModel
+    public class CreateWorkOrderViewModel : IValidatableObject
     {
         // Optional: If converting from a maintenance request
         [Display(Name = "Maintenance Request ID")]
@@ -44,5 +44,39 @@ namespace IT15_Project.Models.ViewModels
         [Display(Name = "Instructions / Remarks")]
         [StringLength(2000)]
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// Custom validation for date fields
+        /// </summary>
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // Validate Start Date is not in the past
+            if (DateCreated.Date < DateTime.Today)
+            {
+                yield return new ValidationResult(
+                    "Start date cannot be in the past.",
+                    new[] { nameof(DateCreated) }
+                );
+            }
+
+            // Validate Expected Completion is after Start Date
+            if (DueDate.Date <= DateCreated.Date)
+            {
+                yield return new ValidationResult(
+                    "Expected completion must be after the start date.",
+                    new[] { nameof(DueDate) }
+                );
+            }
+
+            // Validate duration is not more than 365 days
+            var duration = (DueDate.Date - DateCreated.Date).Days;
+            if (duration > 365)
+            {
+                yield return new ValidationResult(
+                    "Schedule duration cannot exceed 365 days.",
+                    new[] { nameof(DueDate) }
+                );
+            }
+        }
     }
 }

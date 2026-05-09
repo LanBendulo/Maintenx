@@ -33,6 +33,7 @@ namespace IT15_Project.Controllers
         {
             // TENANT-AWARE: Filter by current company
             var companyId = _tenantService.GetCurrentCompanyId();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             
             var query = _context.MaintenanceRequests
                 .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
@@ -41,6 +42,22 @@ namespace IT15_Project.Controllers
                 .Include(mr => mr.WorkOrder)
                 .AsQueryable();
 
+            // ROLE-BASED FILTERING: Users can only see their own requests
+            if (User.IsInRole("User"))
+            {
+                var personnel = await _context.Personnel
+                    .Where(p => p.CompanyId == companyId && p.UserId == userId)
+                    .FirstOrDefaultAsync();
+
+                if (personnel == null)
+                {
+                    TempData["ErrorMessage"] = "Your account is not linked to a personnel record. Please contact your administrator.";
+                    return RedirectToAction("Index", "Home");
+                }
+
+                query = query.Where(mr => mr.RequestedBy == personnel.PersonnelId);
+            }
+
             // Filter based on archive status
             switch (filter.ToLower())
             {
@@ -48,7 +65,7 @@ namespace IT15_Project.Controllers
                     query = query.Where(mr => mr.IsArchived);
                     break;
                 case "all":
-                    // No filter - show everything (but still filtered by company)
+                    // No filter - show everything (but still filtered by company and user if applicable)
                     break;
                 case "active":
                 default:
@@ -165,17 +182,35 @@ namespace IT15_Project.Controllers
             {
                 // TENANT-AWARE: Filter by current company AND id
                 var companyId = _tenantService.GetCurrentCompanyId();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 
-                var request = await _context.MaintenanceRequests
+                var query = _context.MaintenanceRequests
                     .Where(mr => mr.RequestId == id && mr.CompanyId == companyId)  // TENANT FILTER
                     .Include(mr => mr.Asset)
                     .Include(mr => mr.RequestedByPersonnel)
                     .Include(mr => mr.WorkOrder)
-                    .FirstOrDefaultAsync();
+                    .AsQueryable();
+
+                // ROLE-BASED FILTERING: Users can only see their own requests
+                if (User.IsInRole("User"))
+                {
+                    var personnel = await _context.Personnel
+                        .Where(p => p.CompanyId == companyId && p.UserId == userId)
+                        .FirstOrDefaultAsync();
+
+                    if (personnel == null)
+                    {
+                        return Unauthorized(new { success = false, message = "Your account is not linked to a personnel record." });
+                    }
+
+                    query = query.Where(mr => mr.RequestedBy == personnel.PersonnelId);
+                }
+
+                var request = await query.FirstOrDefaultAsync();
 
                 if (request == null)
                 {
-                    return NotFound(new { success = false, message = "Maintenance request not found." });
+                    return NotFound(new { success = false, message = "Maintenance request not found or you don't have permission to view it." });
                 }
 
                 var result = new
@@ -460,6 +495,60 @@ namespace IT15_Project.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get available assets for maintenance request creation
+        /// ACCESSIBLE BY: All authenticated users including Requesters/Users
+        /// RETURNS: Minimal DTO with only essential asset information
+        /// </summary>
+        [HttpGet]
+        [Route("available-assets")]
+        [Authorize(Roles = "Admin,Owner,User")]
+        public async Task<IActionResult> GetAvailableAssets()
+        {
+            try
+            {
+                // TENANT-AWARE: Filter by current company
+                var companyId = _tenantService.GetCurrentCompanyId();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userRoles = User.Claims
+                    .Where(c => c.Type == ClaimTypes.Role)
+                    .Select(c => c.Value)
+                    .ToList();
+
+                // LOG: Request received
+                Console.WriteLine($"[ASSET LOADING] Request received from User: {userId}, CompanyId: {companyId}, Roles: {string.Join(", ", userRoles)}");
+
+                // Get active assets for the company
+                var assets = await _context.Assets
+                    .Where(a => a.CompanyId == companyId && a.Status == "Active")  // TENANT FILTER + Active only
+                    .OrderBy(a => a.AssetName)
+                    .Select(a => new { 
+                        value = a.AssetId, 
+                        text = a.AssetName,
+                        code = a.AssetCode,
+                        location = a.Location
+                    })
+                    .ToListAsync();
+
+                // LOG: Asset count
+                Console.WriteLine($"[ASSET LOADING] Found {assets.Count} active assets for CompanyId: {companyId}");
+
+                return Ok(assets);
+            }
+            catch (Exception ex)
+            {
+                // LOG: Error
+                Console.WriteLine($"[ASSET LOADING ERROR] {ex.Message}");
+                Console.WriteLine($"[ASSET LOADING ERROR] Stack: {ex.StackTrace}");
+                
+                return StatusCode(500, new { 
+                    success = false, 
+                    message = "Failed to load assets", 
+                    error = ex.Message 
+                });
             }
         }
     }

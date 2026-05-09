@@ -48,7 +48,8 @@ namespace IT15_Project.Controllers
 
             if (personnel == null)
             {
-                return Unauthorized();
+                TempData["ErrorMessage"] = "Your account is not linked to a personnel record. Please contact your administrator.";
+                return RedirectToAction("Index", "Home");
             }
 
             // Get assigned work orders (TECHNICIAN-SCOPED)
@@ -94,7 +95,8 @@ namespace IT15_Project.Controllers
 
             if (personnel == null)
             {
-                return Unauthorized();
+                TempData["ErrorMessage"] = "Your account is not linked to a personnel record. Please contact your administrator.";
+                return RedirectToAction("Index", "Home");
             }
 
             // Query only work orders assigned to this technician
@@ -152,7 +154,8 @@ namespace IT15_Project.Controllers
 
             if (personnel == null)
             {
-                return Unauthorized();
+                TempData["ErrorMessage"] = "Your account is not linked to a personnel record. Please contact your administrator.";
+                return RedirectToAction("Index", "Home");
             }
 
             // Ensure work order is assigned to this technician

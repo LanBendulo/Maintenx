@@ -3,20 +3,37 @@ namespace IT15_Project.Services
     /// <summary>
     /// Service interface for tenant (company) context management
     /// Provides the current user's CompanyId for multi-tenant isolation
+    /// Supports SuperAdmin (CompanyId = null) for platform-level access
     /// </summary>
     public interface ITenantService
     {
         /// <summary>
+        /// Gets the current user's CompanyId (nullable for SuperAdmin support)
+        /// Returns null for SuperAdmin users (platform-level access)
+        /// Returns CompanyId for tenant users (company-scoped access)
+        /// </summary>
+        /// <returns>CompanyId or null for SuperAdmin</returns>
+        int? GetCurrentCompanyIdNullable();
+
+        /// <summary>
         /// Gets the current user's CompanyId
+        /// Returns 1 as fallback for backward compatibility
+        /// Use GetCurrentCompanyIdNullable() for SuperAdmin-aware code
         /// </summary>
         /// <returns>CompanyId of the current authenticated user</returns>
-        /// <exception cref="UnauthorizedAccessException">Thrown when user is not authenticated or has no company</exception>
         int GetCurrentCompanyId();
 
         /// <summary>
-        /// Gets the current user's Company information
+        /// Checks if the current user is a SuperAdmin (platform-level access)
         /// </summary>
-        /// <returns>Company entity or null if not found</returns>
+        /// <returns>True if user is SuperAdmin (CompanyId = null), false otherwise</returns>
+        bool IsSuperAdmin();
+
+        /// <summary>
+        /// Gets the current user's Company information
+        /// Returns null for SuperAdmin users
+        /// </summary>
+        /// <returns>Company entity or null if not found or SuperAdmin</returns>
         Task<Models.Company?> GetCurrentCompanyAsync();
 
         /// <summary>

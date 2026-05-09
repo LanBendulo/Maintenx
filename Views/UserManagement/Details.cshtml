@@ -1,0 +1,452 @@
+@model IT15_Project.Models.ViewModels.UserDetailsViewModel
+@{
+    ViewData["Title"] = "User Details";
+    ViewData["Active"] = "UserManagement";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/maintenx-role-badges.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>User Details</h1>
+        <p>@Model.FullName — @string.Join(", ", Model.Roles)</p>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a href="/admin/users" class="btn-modal-cancel" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;height:42px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Back to Users
+        </a>
+        @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+        {
+            <button class="btn-primary-mx" onclick="window.location.href='/admin/users/@Model.Id/edit'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit User
+            </button>
+        }
+    </div>
+</div>
+
+<!-- User Header Card -->
+<div class="card" style="margin-bottom:24px;">
+    <div style="display:flex;align-items:center;gap:20px;">
+        <div class="td-avatar" style="width:80px;height:80px;font-size:28px;">
+            @(Model.FullName.Length >= 2 ? Model.FullName.Substring(0, 2).ToUpper() : Model.FullName.ToUpper())
+        </div>
+        <div style="flex:1;">
+            <h1 style="font-family:var(--mx-head);font-size:24px;font-weight:800;color:var(--mx-txt);margin-bottom:6px;">
+                @Model.FullName
+            </h1>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                @await Html.PartialAsync("_RoleBadge", Model.Roles)
+                @if (Model.IsActive)
+                {
+                    <span class="badge badge-done">Active</span>
+                }
+                else
+                {
+                    <span class="badge badge-cancelled">Inactive</span>
+                }
+                @if (!Model.EmailConfirmed)
+                {
+                    <span class="badge" style="background:rgba(250,204,21,.12);color:#ca8a04;">Email Unverified</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:24px;">
+    
+    <!-- Left Column -->
+    <div style="display:flex;flex-direction:column;gap:24px;">
+        
+        <!-- Account Information -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Account Information</h2>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Email Address</div>
+                    <div class="info-value">@Model.Email</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Phone Number</div>
+                    <div class="info-value">@(Model.PhoneNumber ?? "Not provided")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Account Status</div>
+                    <div class="info-value">
+                        @if (Model.IsActive)
+                        {
+                            <span class="badge badge-done">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-cancelled">Inactive</span>
+                        }
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email Confirmed</div>
+                    <div class="info-value">
+                        @if (Model.EmailConfirmed)
+                        {
+                            <span style="color:var(--mx-green);">✓ Verified</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--mx-orange);">✗ Unverified</span>
+                        }
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Two-Factor Auth</div>
+                    <div class="info-value">
+                        @if (Model.TwoFactorEnabled)
+                        {
+                            <span style="color:var(--mx-green);">✓ Enabled</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--mx-muted);">✗ Disabled</span>
+                        }
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Account Lockout</div>
+                    <div class="info-value">
+                        @if (Model.LockoutEnd.HasValue && Model.LockoutEnd.Value > DateTimeOffset.Now)
+                        {
+                            <span style="color:var(--mx-red);">Locked until @Model.LockoutEnd.Value.ToString("MMM dd, yyyy HH:mm")</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--mx-green);">Not locked</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personnel Link -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Personnel Link</h2>
+            </div>
+            @if (Model.HasPersonnelLink)
+            {
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Linked Personnel</div>
+                        <div class="info-value">
+                            <a href="/admin/personnel/@Model.PersonnelId" style="color:var(--mx-primary);text-decoration:none;font-weight:600;">
+                                @Model.PersonnelName
+                            </a>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Personnel Role</div>
+                        <div class="info-value">@(Model.PersonnelRole ?? "N/A")</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Skill Set</div>
+                        <div class="info-value">@(Model.PersonnelSkillSet ?? "N/A")</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div style="padding:20px;text-align:center;color:var(--mx-muted);">
+                    <p>This user account is not linked to any personnel record.</p>
+                    @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+                    {
+                        <button class="btn-secondary" style="margin-top:12px;" onclick="window.location.href='/admin/users/@Model.Id/edit'">
+                            Link to Personnel
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Activity Metrics -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Activity Metrics</h2>
+            </div>
+            <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);gap:16px;">
+                <div style="padding:16px;background:var(--mx-surface);border-radius:8px;">
+                    <div style="font-size:28px;font-weight:800;color:var(--mx-primary);margin-bottom:4px;">@Model.WorkOrdersCreated</div>
+                    <div style="font-size:12px;color:var(--mx-muted);font-weight:500;">Work Orders Created</div>
+                </div>
+                <div style="padding:16px;background:var(--mx-surface);border-radius:8px;">
+                    <div style="font-size:28px;font-weight:800;color:var(--mx-navy);margin-bottom:4px;">@Model.WorkOrdersAssigned</div>
+                    <div style="font-size:12px;color:var(--mx-muted);font-weight:500;">Work Orders Assigned</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div style="display:flex;flex-direction:column;gap:24px;">
+        
+        <!-- Account Timeline -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Account Timeline</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div class="timeline-item">
+                    <div class="timeline-icon" style="background:var(--mx-green);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="timeline-label">Account Created</div>
+                        <div class="timeline-value">@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                        <div class="timeline-sub">@Model.AccountAgeDays days ago</div>
+                    </div>
+                </div>
+                @if (Model.LastLoginAt.HasValue)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-icon" style="background:var(--mx-blue);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="timeline-label">Last Login</div>
+                            <div class="timeline-value">@Model.LastLoginAt.Value.ToString("MMM dd, yyyy HH:mm")</div>
+                            <div class="timeline-sub">@((DateTime.Now - Model.LastLoginAt.Value).Days) days ago</div>
+                        </div>
+                    </div>
+                }
+                @if (Model.UpdatedAt.HasValue)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-icon" style="background:var(--mx-orange);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="timeline-label">Last Updated</div>
+                            <div class="timeline-value">@Model.UpdatedAt.Value.ToString("MMM dd, yyyy HH:mm")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Company Information -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Company</h2>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Company Name</div>
+                    <div class="info-value">@(Model.CompanyName ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Company ID</div>
+                    <div class="info-value">@(Model.CompanyId?.ToString() ?? "N/A")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Information -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Security</h2>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Failed Login Attempts</div>
+                    <div class="info-value">
+                        @if (Model.AccessFailedCount > 0)
+                        {
+                            <span style="color:var(--mx-orange);font-weight:600;">@Model.AccessFailedCount</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--mx-green);">0</span>
+                        }
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Lockout Status</div>
+                    <div class="info-value">
+                        @if (Model.LockoutEnabled)
+                        {
+                            <span style="color:var(--mx-orange);">Enabled</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--mx-muted);">Disabled</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+        {
+            <div class="card">
+                <div class="section-header">
+                    <h2>Quick Actions</h2>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <button class="btn-secondary" style="width:100%;justify-content:center;" onclick="openChangeRoleModal('@Model.Id', '@Model.FullName', '@string.Join(",", Model.Roles)')">
+                        Change Role
+                    </button>
+                    <button class="btn-secondary" style="width:100%;justify-content:center;" onclick="openResetPasswordModal('@Model.Id', '@Model.FullName', '@Model.Email')">
+                        Reset Password
+                    </button>
+                    @if (Model.IsActive)
+                    {
+                        <button class="btn-secondary" style="width:100%;justify-content:center;color:var(--mx-red);border-color:var(--mx-red);" onclick="deactivateUser('@Model.Id', '@Model.FullName')">
+                            Deactivate Account
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-secondary" style="width:100%;justify-content:center;color:var(--mx-green);border-color:var(--mx-green);" onclick="reactivateUser('@Model.Id', '@Model.FullName')">
+                            Reactivate Account
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+<!-- Change Role Modal -->
+<div id="changeRoleModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header">
+            <h3>Change User Role</h3>
+            <button class="modal-close" onclick="closeModal('changeRoleModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:20px;color:var(--mx-muted);">Change role for <strong id="changeRoleUserName"></strong></p>
+            <input type="hidden" id="changeRoleUserId">
+            <input type="hidden" id="changeRoleCurrentRole">
+            <div class="form-group">
+                <label>New Role</label>
+                <select id="changeRoleNewRole" class="form-control">
+                    <option value="Admin">Admin</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Technician">Technician</option>
+                    <option value="InventoryManager">InventoryManager</option>
+                    <option value="User">User</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('changeRoleModal')">Cancel</button>
+            <button class="btn-primary" onclick="submitChangeRole()">Change Role</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetPasswordModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header">
+            <h3>Reset Password</h3>
+            <button class="modal-close" onclick="closeModal('resetPasswordModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:20px;color:var(--mx-muted);">Reset password for <strong id="resetPasswordUserName"></strong> (<span id="resetPasswordEmail"></span>)</p>
+            <input type="hidden" id="resetPasswordUserId">
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" id="resetPasswordNew" class="form-control" placeholder="Enter new password" required>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" id="resetPasswordConfirm" class="form-control" placeholder="Confirm new password" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('resetPasswordModal')">Cancel</button>
+            <button class="btn-primary" onclick="submitResetPassword()">Reset Password</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.info-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--mx-muted);
+}
+.info-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mx-txt);
+}
+.timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.timeline-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+.timeline-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--mx-muted);
+    margin-bottom: 4px;
+}
+.timeline-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mx-txt);
+}
+.timeline-sub {
+    font-size: 11px;
+    color: var(--mx-muted);
+    margin-top: 2px;
+}
+</style>
+
+@section Scripts {
+<script src="~/js/user-management.js"></script>
+}

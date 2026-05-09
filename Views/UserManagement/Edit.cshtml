@@ -1,0 +1,227 @@
+@model IT15_Project.Models.ViewModels.CreateEditUserViewModel
+@{
+    ViewData["Title"] = "Edit User";
+    ViewData["Active"] = "UserManagement";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/maintenx-role-badges.css" asp-append-version="true" />
+
+<!-- Back Button -->
+<div style="margin-bottom:20px;">
+    <a href="/admin/users/@Model.Id" class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back to Details
+    </a>
+</div>
+
+<!-- Edit User Form -->
+<div class="card" style="max-width:800px;margin:0 auto;">
+    <div class="section-header">
+        <h2>Edit User</h2>
+    </div>
+
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom:20px;"></div>
+
+        <!-- Basic Information -->
+        <div style="margin-bottom:30px;">
+            <h3 style="font-size:16px;font-weight:700;color:var(--mx-txt);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--mx-border);">
+                Basic Information
+            </h3>
+            
+            <div class="form-group">
+                <label asp-for="FullName">Full Name <span style="color:var(--mx-red);">*</span></label>
+                <input asp-for="FullName" class="form-control" placeholder="Enter full name" required />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email">Email Address <span style="color:var(--mx-red);">*</span></label>
+                <input asp-for="Email" type="email" class="form-control" placeholder="user@example.com" required />
+                <span asp-validation-for="Email" class="text-danger"></span>
+                <small style="color:var(--mx-muted);font-size:12px;">This will be used as the username for login.</small>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PhoneNumber">Phone Number</label>
+                <input asp-for="PhoneNumber" type="tel" class="form-control" placeholder="+63 XXX XXX XXXX" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Role & Access -->
+        <div style="margin-bottom:30px;">
+            <h3 style="font-size:16px;font-weight:700;color:var(--mx-txt);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--mx-border);">
+                Role & Access
+            </h3>
+
+            <div class="form-group">
+                <label asp-for="Role">User Role <span style="color:var(--mx-red);">*</span></label>
+                <select asp-for="Role" class="form-control" required>
+                    <option value="">-- Select Role --</option>
+                    @foreach (var role in Model.AvailableRoles)
+                    {
+                        <option value="@role" selected="@(Model.Role == role)">@role</option>
+                    }
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+                <small style="color:var(--mx-muted);font-size:12px;">
+                    Role determines what the user can access and manage in the system.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input asp-for="IsActive" type="checkbox" />
+                    <span>Account Active</span>
+                </label>
+                <small style="color:var(--mx-muted);font-size:12px;">
+                    Inactive accounts cannot log in to the system.
+                </small>
+            </div>
+        </div>
+
+        <!-- Personnel Link -->
+        <div style="margin-bottom:30px;">
+            <h3 style="font-size:16px;font-weight:700;color:var(--mx-txt);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--mx-border);">
+                Personnel Link (Optional)
+            </h3>
+
+            <div class="form-group">
+                <label asp-for="LinkedPersonnelId">Link to Personnel Record</label>
+                <select asp-for="LinkedPersonnelId" class="form-control">
+                    <option value="">-- No Personnel Link --</option>
+                    @foreach (var personnel in Model.AvailablePersonnel)
+                    {
+                        var isSelected = Model.LinkedPersonnelId == personnel.PersonnelId;
+                        var isDisabled = personnel.HasUserAccount && !isSelected;
+                        <option value="@personnel.PersonnelId" selected="@isSelected" disabled="@isDisabled">
+                            @personnel.FullName @(personnel.Role != null ? $"({personnel.Role})" : "") @(personnel.HasUserAccount && !isSelected ? "[Already Linked]" : "")
+                        </option>
+                    }
+                </select>
+                <small style="color:var(--mx-muted);font-size:12px;">
+                    Link this user account to an existing personnel record for operational tracking.
+                </small>
+            </div>
+        </div>
+
+        <!-- Password Note -->
+        <div style="margin-bottom:30px;">
+            <div style="padding:14px;background:rgba(43,126,212,.08);border-left:3px solid var(--mx-blue);border-radius:8px;">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:var(--mx-blue);flex-shrink:0;margin-top:2px;">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--mx-txt);margin-bottom:4px;">Password Management</div>
+                        <div style="font-size:12px;color:var(--mx-muted);">
+                            To change the user's password, use the "Reset Password" action from the user details page or the quick actions menu.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display:flex;gap:12px;justify-content:flex-end;padding-top:20px;border-top:1px solid var(--mx-border);">
+            <a href="/admin/users/@Model.Id" class="btn-secondary">Cancel</a>
+            <button type="submit" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px;">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-group {
+    margin-bottom: 20px;
+}
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mx-txt);
+    margin-bottom: 8px;
+}
+.form-control {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--mx-border);
+    border-radius: 8px;
+    font-family: var(--mx-body);
+    font-size: 14px;
+    color: var(--mx-txt);
+    background: var(--mx-white);
+    transition: all 0.2s;
+}
+.form-control:focus {
+    outline: none;
+    border-color: var(--mx-blue);
+    box-shadow: 0 0 0 3px rgba(43,126,212,.12);
+}
+.form-control::placeholder {
+    color: var(--mx-muted);
+    opacity: 0.6;
+}
+.text-danger {
+    display: block;
+    color: var(--mx-red);
+    font-size: 12px;
+    margin-top: 6px;
+}
+.alert {
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.alert-danger {
+    background: rgba(239,68,68,.1);
+    color: var(--mx-red);
+    border: 1px solid rgba(239,68,68,.3);
+}
+.btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: var(--mx-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    border: none;
+}
+.btn-primary {
+    background: var(--mx-primary);
+    color: #fff;
+}
+.btn-primary:hover {
+    background: var(--mx-blue);
+    transform: translateY(-1px);
+}
+.btn-secondary {
+    background: var(--mx-white);
+    color: var(--mx-txt);
+    border: 1.5px solid var(--mx-border);
+}
+.btn-secondary:hover {
+    border-color: var(--mx-primary);
+    color: var(--mx-primary);
+}
+</style>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

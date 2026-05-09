@@ -1,0 +1,457 @@
+@model IT15_Project.Models.ViewModels.PersonnelDetailsViewModel
+@{
+    ViewData["Title"] = $"Personnel - {Model.FullName}";
+    ViewData["Active"] = "Personnel";
+    Layout = "/Views/Shared/_AdminLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/maintenx-role-badges.css" asp-append-version="true" />
+
+<!-- ══════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════ -->
+<div class="page-header">
+    <div class="page-header-left">
+        <button class="btn-back" onclick="window.location.href='/admin/personnel'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+        </button>
+        <div>
+            <h1>@Model.FullName</h1>
+            <p>@(Model.Position ?? "Personnel") • Employee ID: @(Model.EmployeeId ?? "N/A")</p>
+        </div>
+    </div>
+    @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+    {
+        <button class="btn-primary-mx" onclick="window.location.href='/admin/personnel/@Model.PersonnelId/edit'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Personnel
+        </button>
+    }
+</div>
+
+<!-- ══════════════════════════════════════
+     TWO-COLUMN LAYOUT
+════════════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:1fr 400px;gap:20px;margin-bottom:30px;">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- PROFILE INFORMATION -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Profile Information</h2>
+                @switch (Model.Status)
+                {
+                    case "Active":
+                        <span class="badge badge-done">Active</span>
+                        break;
+                    case "Inactive":
+                        <span class="badge badge-cancelled">Inactive</span>
+                        break;
+                    case "OnLeave":
+                        <span class="badge badge-pending">On Leave</span>
+                        break;
+                    case "Retired":
+                        <span class="badge" style="background:rgba(100,116,139,.12);color:#64748b;">Retired</span>
+                        break;
+                    case "Terminated":
+                        <span class="badge" style="background:rgba(239,68,68,.12);color:#dc2626;">Terminated</span>
+                        break;
+                }
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Full Name</div>
+                    <div style="font-weight:500;">@Model.FullName</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Employee ID</div>
+                    <div style="font-weight:500;font-family:monospace;">@(Model.EmployeeId ?? "N/A")</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Email</div>
+                    <div style="font-weight:500;">@(Model.Email ?? "N/A")</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Phone Number</div>
+                    <div style="font-weight:500;">@(Model.PhoneNumber ?? "N/A")</div>
+                </div>
+                <div style="grid-column:1/-1;">
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Address</div>
+                    <div style="font-weight:500;">@(Model.Address ?? "N/A")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMPLOYMENT INFORMATION -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Employment Information</h2>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Position/Title</div>
+                    <div style="font-weight:500;">@(Model.Position ?? "N/A")</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Department</div>
+                    <div style="font-weight:500;">@(Model.Department ?? "N/A")</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Employment Type</div>
+                    <div>
+                        @if (!string.IsNullOrEmpty(Model.EmploymentType))
+                        {
+                            <span class="badge badge-employment-@Model.EmploymentType.ToLower()">@Model.EmploymentType</span>
+                        }
+                        else
+                        {
+                            <span>N/A</span>
+                        }
+                    </div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Job Role</div>
+                    <div style="font-weight:500;">@(Model.Role ?? "N/A")</div>
+                </div>
+                <div>
+                    <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Hire Date</div>
+                    <div style="font-weight:500;">
+                        @if (Model.HireDate.HasValue)
+                        {
+                            @Model.HireDate.Value.ToString("MMMM dd, yyyy")
+                            <span style="color:var(--mx-muted);font-size:12px;margin-left:8px;">(@Model.DaysEmployed days)</span>
+                        }
+                        else
+                        {
+                            <span>N/A</span>
+                        }
+                    </div>
+                </div>
+                @if (Model.TerminationDate.HasValue)
+                {
+                    <div>
+                        <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Termination Date</div>
+                        <div style="font-weight:500;color:var(--mx-red);">@Model.TerminationDate.Value.ToString("MMMM dd, yyyy")</div>
+                    </div>
+                }
+                @if (Model.HourlyRate.HasValue)
+                {
+                    <div>
+                        <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Hourly Rate</div>
+                        <div style="font-weight:500;">$@Model.HourlyRate.Value.ToString("N2")/hr</div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.SkillSet))
+                {
+                    <div style="grid-column:1/-1;">
+                        <div style="color:var(--mx-muted);font-size:12px;margin-bottom:8px;">Skills</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                            @foreach (var skill in Model.SkillSet.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                <span class="badge" style="background:rgba(59,130,246,.12);color:#2563eb;">@skill.Trim()</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- EMERGENCY CONTACT -->
+        @if (!string.IsNullOrEmpty(Model.EmergencyContactName) || !string.IsNullOrEmpty(Model.EmergencyContactPhone))
+        {
+            <div class="card">
+                <div class="section-header">
+                    <h2>Emergency Contact</h2>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
+                    <div>
+                        <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Contact Name</div>
+                        <div style="font-weight:500;">@(Model.EmergencyContactName ?? "N/A")</div>
+                    </div>
+                    <div>
+                        <div style="color:var(--mx-muted);font-size:12px;margin-bottom:4px;">Contact Phone</div>
+                        <div style="font-weight:500;">@(Model.EmergencyContactPhone ?? "N/A")</div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- NOTES -->
+        @if (!string.IsNullOrEmpty(Model.Notes))
+        {
+            <div class="card">
+                <div class="section-header">
+                    <h2>Notes</h2>
+                </div>
+                <div style="padding:20px;color:var(--mx-muted);line-height:1.6;">
+                    @Model.Notes
+                </div>
+            </div>
+        }
+
+        <!-- RECENT WORK ORDERS -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Recent Work Orders</h2>
+                <span class="table-meta">@Model.RecentWorkOrders.Count recent</span>
+            </div>
+
+            @if (Model.RecentWorkOrders.Any())
+            {
+                <div style="overflow-x:auto;">
+                    <table class="mx-table">
+                        <thead>
+                            <tr>
+                                <th>WO Number</th>
+                                <th>Asset</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var wo in Model.RecentWorkOrders)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/dashboard/work-orders/@wo.WorkOrderId" style="color:var(--mx-blue);text-decoration:none;font-weight:500;">
+                                            @wo.WorkOrderNumber
+                                        </a>
+                                    </td>
+                                    <td>@wo.AssetName</td>
+                                    <td>
+                                        @switch (wo.Status)
+                                        {
+                                            case "Open":
+                                                <span class="badge badge-open">Open</span>
+                                                break;
+                                            case "In Progress":
+                                                <span class="badge badge-inprog">In Progress</span>
+                                                break;
+                                            case "On Hold":
+                                                <span class="badge badge-pending">On Hold</span>
+                                                break;
+                                            case "Completed":
+                                                <span class="badge badge-done">Completed</span>
+                                                break;
+                                            case "Cancelled":
+                                                <span class="badge badge-cancelled">Cancelled</span>
+                                                break;
+                                            default:
+                                                <span class="badge">@wo.Status</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td>
+                                        @switch (wo.Priority)
+                                        {
+                                            case "Critical":
+                                                <span class="badge badge-critical">Critical</span>
+                                                break;
+                                            case "High":
+                                                <span class="badge badge-high">High</span>
+                                                break;
+                                            case "Medium":
+                                                <span class="badge badge-medium">Medium</span>
+                                                break;
+                                            case "Low":
+                                                <span class="badge badge-low">Low</span>
+                                                break;
+                                            default:
+                                                <span class="badge">@wo.Priority</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td style="color:var(--mx-muted);font-size:12px;">
+                                        @wo.DateCreated.ToString("MMM dd, yyyy")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                    <p>No work orders assigned yet.</p>
+                </div>
+            }
+        </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- QUICK ACTIONS -->
+        @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+        {
+            <div class="card">
+                <div class="section-header">
+                    <h2>Quick Actions</h2>
+                </div>
+
+                <div style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+                    <button class="btn-secondary-mx" onclick="window.location.href='/admin/personnel/@Model.PersonnelId/edit'" style="width:100%;justify-content:flex-start;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit Personnel
+                    </button>
+
+                    @if (!Model.HasUserAccount)
+                    {
+                        <button class="btn-secondary-mx" onclick="alert('Link user feature - to be implemented')" style="width:100%;justify-content:flex-start;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                            Link User Account
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-secondary-mx" onclick="unlinkUser(@Model.PersonnelId, '@Model.FullName')" style="width:100%;justify-content:flex-start;color:var(--mx-orange);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                            Unlink User Account
+                        </button>
+                    }
+
+                    @if (Model.Status == "Active")
+                    {
+                        <button class="btn-secondary-mx" onclick="archivePersonnel(@Model.PersonnelId, '@Model.FullName')" style="width:100%;justify-content:flex-start;color:var(--mx-red);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+                            </svg>
+                            Archive Personnel
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-secondary-mx" onclick="reactivatePersonnel(@Model.PersonnelId, '@Model.FullName')" style="width:100%;justify-content:flex-start;color:var(--mx-green);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            Reactivate Personnel
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- LINKED USER ACCOUNT -->
+        <div class="card">
+            <div class="section-header">
+                <h2>User Account</h2>
+            </div>
+
+            @if (Model.HasUserAccount)
+            {
+                <div style="padding:20px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                        <div class="td-avatar">
+                            @(Model.UserFullName?.Length >= 2 ? Model.UserFullName.Substring(0, 2).ToUpper() : "NA")
+                        </div>
+                        <div>
+                            <div style="font-weight:500;">@Model.UserFullName</div>
+                            <div style="color:var(--mx-muted);font-size:12px;">@Model.UserEmail</div>
+                        </div>
+                    </div>
+
+                    @if (Model.UserRoles.Any())
+                    {
+                        <div style="margin-bottom:12px;">
+                            <div style="color:var(--mx-muted);font-size:12px;margin-bottom:6px;">Roles</div>
+                            @await Html.PartialAsync("_RoleBadge", Model.UserRoles)
+                        </div>
+                    }
+
+                    <a href="/admin/users/@Model.UserId" class="btn-secondary-mx" style="width:100%;text-decoration:none;display:flex;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        View User Account
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;margin:0 auto 12px;opacity:0.3;">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                    <p style="margin-bottom:16px;">No user account linked</p>
+                    @if (User.IsInRole("Owner") || User.IsInRole("Admin"))
+                    {
+                        <button class="btn-secondary-mx" onclick="alert('Link user feature - to be implemented')" style="margin:0 auto;">
+                            Link Account
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- WORK ORDER METRICS -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Work Order Metrics</h2>
+            </div>
+
+            <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="color:var(--mx-muted);font-size:13px;">Active Work Orders</span>
+                    <span style="font-weight:600;font-size:18px;color:var(--mx-blue);">@Model.ActiveWorkOrders</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="color:var(--mx-muted);font-size:13px;">Completed Work Orders</span>
+                    <span style="font-weight:600;font-size:18px;color:var(--mx-green);">@Model.CompletedWorkOrders</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding-top:16px;border-top:1px solid var(--mx-border);">
+                    <span style="color:var(--mx-muted);font-size:13px;">Total Work Orders</span>
+                    <span style="font-weight:600;font-size:18px;">@Model.TotalWorkOrders</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- METADATA -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Record Information</h2>
+            </div>
+
+            <div style="padding:20px;display:flex;flex-direction:column;gap:12px;font-size:13px;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--mx-muted);">Created</span>
+                    <span style="font-weight:500;">@Model.CreatedAt.ToString("MMM dd, yyyy")</span>
+                </div>
+                @if (Model.UpdatedAt.HasValue)
+                {
+                    <div style="display:flex;justify-content:space-between;">
+                        <span style="color:var(--mx-muted);">Last Updated</span>
+                        <span style="font-weight:500;">@Model.UpdatedAt.Value.ToString("MMM dd, yyyy")</span>
+                    </div>
+                }
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--mx-muted);">Company</span>
+                    <span style="font-weight:500;">@Model.CompanyName</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/personnel-management.js"></script>
+}
