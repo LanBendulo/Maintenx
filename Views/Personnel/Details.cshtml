@@ -45,25 +45,8 @@
         <div class="card">
             <div class="section-header">
                 <h2>Profile Information</h2>
-                @switch (Model.Status)
-                {
-                    case "Active":
-                        <span class="badge badge-done">Active</span>
-                        break;
-                    case "Inactive":
-                        <span class="badge badge-cancelled">Inactive</span>
-                        break;
-                    case "OnLeave":
-                        <span class="badge badge-pending">On Leave</span>
-                        break;
-                    case "Retired":
-                        <span class="badge" style="background:rgba(100,116,139,.12);color:#64748b;">Retired</span>
-                        break;
-                    case "Terminated":
-                        <span class="badge" style="background:rgba(239,68,68,.12);color:#dc2626;">Terminated</span>
-                        break;
-                }
-            </div>
+                @await Html.PartialAsync("_PersonnelStatusBadge", Model.Status)
+            </div>            </div>
 
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
                 <div>
@@ -229,27 +212,7 @@
                                     </td>
                                     <td>@wo.AssetName</td>
                                     <td>
-                                        @switch (wo.Status)
-                                        {
-                                            case "Open":
-                                                <span class="badge badge-open">Open</span>
-                                                break;
-                                            case "In Progress":
-                                                <span class="badge badge-inprog">In Progress</span>
-                                                break;
-                                            case "On Hold":
-                                                <span class="badge badge-pending">On Hold</span>
-                                                break;
-                                            case "Completed":
-                                                <span class="badge badge-done">Completed</span>
-                                                break;
-                                            case "Cancelled":
-                                                <span class="badge badge-cancelled">Cancelled</span>
-                                                break;
-                                            default:
-                                                <span class="badge">@wo.Status</span>
-                                                break;
-                                        }
+                                        @await Html.PartialAsync("_WorkOrderStatusBadge", wo.Status)
                                     </td>
                                     <td>
                                         @switch (wo.Priority)

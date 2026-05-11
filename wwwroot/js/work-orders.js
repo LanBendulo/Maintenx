@@ -133,7 +133,7 @@
         });
         
         // Store the request ID for submission
-        form.dataset.maintenanceRequestId = data.maintenanceRequestId;
+        form.dataset.maintenanceRequestId = data.requestId;
         
         // Update submit button text
         submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Convert to Work Order';
@@ -894,7 +894,7 @@
         document.getElementById('cost-total').textContent = formatCurrency(wo.totalCost || 0);
         
         // Check if work order is completed - lock inputs
-        const isCompleted = wo.status === 'Completed' || wo.status === 'Cancelled';
+        const isCompleted = wo.status === WorkOrderStatuses.COMPLETED || wo.status === WorkOrderStatuses.CANCELLED;
         const laborInput = document.getElementById('cost-labor');
         const otherInput = document.getElementById('cost-other');
         const saveBtn = document.getElementById('saveCostBtn');
@@ -1032,7 +1032,7 @@
                 const wo = await response.json();
                 
                 // Check if can be edited
-                if (wo.status === 'Completed' || wo.status === 'Cancelled') {
+                if (wo.status === WorkOrderStatuses.COMPLETED || wo.status === WorkOrderStatuses.CANCELLED) {
                     showToast('Cannot edit completed or cancelled work orders', 'error');
                     return;
                 }
@@ -1316,11 +1316,24 @@
     // UPDATE STATUS ACTION (Modal-based)
     // ========================================
     
-    // Status transition rules
+    // ============================================================================
+    // WORK ORDER STATUS CONSTANTS
+    // ============================================================================
+    // NOTE: These constants are for FRONTEND DISPLAY/WORKFLOW ONLY
+    // Backend (WorkOrderStatuses.cs) is the authoritative source of truth
+    // Any changes to statuses MUST be made in backend first
+    // ============================================================================
+    const WorkOrderStatuses = {
+        PENDING: 'Pending',
+        IN_PROGRESS: 'In Progress',
+        COMPLETED: 'Completed',
+        CANCELLED: 'Cancelled'
+    };
+
+    // Status transition rules (must match backend WorkOrderStatuses.GetValidTransitions)
     const statusTransitions = {
-        'Open': ['In Progress', 'Cancelled'],
-        'Pending': ['In Progress', 'Cancelled'], // Added Pending as alias for Open
-        'In Progress': ['Completed', 'Cancelled'],
+        'Pending': [WorkOrderStatuses.IN_PROGRESS, WorkOrderStatuses.CANCELLED],
+        'In Progress': [WorkOrderStatuses.COMPLETED, WorkOrderStatuses.CANCELLED],
         'Completed': [],
         'Cancelled': []
     };
@@ -1344,18 +1357,18 @@
                 // Store work order ID and current status
                 const statusForm = document.getElementById('statusForm');
                 statusForm.dataset.workOrderId = woId;
-                statusForm.dataset.currentStatus = wo.status || 'Open';
+                statusForm.dataset.currentStatus = wo.status || 'Pending';
                 
                 // Update modal title
                 document.getElementById('status-modal-subtitle').textContent = `#WO-${String(wo.workOrderId).padStart(4, '0')}`;
                 
                 // Show current status
                 const currentBadge = document.getElementById('status-current-badge');
-                currentBadge.textContent = wo.status || 'Open';
+                currentBadge.textContent = wo.status || 'Pending';
                 currentBadge.className = 'badge badge-' + getStatusClass(wo.status);
                 
                 // Normalize status for lookup (handle case variations)
-                const normalizedStatus = wo.status || 'Open';
+                const normalizedStatus = wo.status || 'Pending';
                 console.log('Normalized Status:', normalizedStatus);
                 console.log('Available transitions:', statusTransitions[normalizedStatus]);
                 
@@ -1413,8 +1426,8 @@
         if (statusLower === 'in progress' || statusLower === 'inprogress') return 'inprog';
         if (statusLower === 'completed') return 'done';
         if (statusLower === 'cancelled') return 'cancelled';
-        if (statusLower === 'open' || statusLower === 'pending') return 'pending';
-        return 'pending';
+        if (statusLower === 'pending') return 'pending';
+        return 'pending'; // Default to pending
     }
 
     // Listen for status selection changes
@@ -1422,8 +1435,11 @@
         const selectedStatus = this.value;
         const actualCompletionContainer = document.getElementById('status-actual-completion-container');
         
-        if (selectedStatus === 'Completed') {
+        if (selectedStatus === WorkOrderStatuses.COMPLETED) {
             actualCompletionContainer.style.display = 'block';
+            // Set default to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('status-actual-completion').value = today;
         } else {
             actualCompletionContainer.style.display = 'none';
         }
@@ -1454,7 +1470,7 @@
             return;
         }
         
-        if (newStatus === 'Completed' && !actualCompletion) {
+        if (newStatus === WorkOrderStatuses.COMPLETED && !actualCompletion) {
             showToast('Actual completion date is required when marking as completed', 'error');
             return;
         }
@@ -1571,7 +1587,7 @@
         calculateTotalCost();
         
         // Disable add/remove if completed or cancelled
-        const isCompleted = status === 'Completed' || status === 'Cancelled';
+        const isCompleted = status === WorkOrderStatuses.COMPLETED || status === WorkOrderStatuses.CANCELLED;
         if (isCompleted) {
             addPartBtn.style.display = 'none';
             document.querySelectorAll('.btn-remove-part').forEach(btn => {

@@ -1,0 +1,21 @@
+@model string
+
+@{
+    var status = Model ?? "Active";
+    var badgeClass = status switch
+    {
+        "Active" => "badge-done",
+        "Inactive" => "badge-cancelled",
+        "OnLeave" => "badge-pending",
+        "Retired" => "badge-secondary",
+        _ => "badge-done"
+    };
+    
+    var displayText = status switch
+    {
+        "OnLeave" => "On Leave",
+        _ => status
+    };
+}
+
+<span class="badge @badgeClass">@displayText</span>

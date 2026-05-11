@@ -197,14 +197,10 @@
                                 }
                             </td>
                             <td>
-                                @if (company.IsActive)
-                                {
-                                    <span class="badge badge-done">Active</span>
+                                @{
+                                    bool isActive = company.IsActive;
                                 }
-                                else
-                                {
-                                    <span class="badge badge-cancelled">Suspended</span>
-                                }
+                                @await Html.PartialAsync("_CompanyStatusBadge", isActive)
                             </td>
                             <td>
                                 <div class="td-actions">

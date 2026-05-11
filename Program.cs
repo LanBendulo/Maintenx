@@ -36,6 +36,12 @@ builder.Services.AddScoped<ITenantService, TenantService>();
 
 // Register CostService for Work Order cost tracking
 builder.Services.AddScoped<ICostService, CostService>();
+
+// Register AssetStatusService for automated status lifecycle
+builder.Services.AddScoped<AssetStatusService>();
+
+// Register PreventiveMaintenanceGenerationService for automatic PM work order generation
+builder.Services.AddScoped<PreventiveMaintenanceGenerationService>();
 // ============================================================
 
 // Identity with Roles support using ApplicationUser
@@ -88,6 +94,33 @@ using (var scope = app.Services.CreateScope())
                 await DbSeeder.SeedContractorPersonnelAsync(services);
                 logger.LogInformation("✓ Development data seeded successfully!");
             }
+
+            // ─── Execute PM Work Order Generation ───────────────────
+            logger.LogInformation("Running PM work order generation...");
+            var pmService = services.GetRequiredService<PreventiveMaintenanceGenerationService>();
+            var pmResult = await pmService.GenerateDueWorkOrdersAsync();
+            
+            if (pmResult.Skipped)
+            {
+                logger.LogInformation("PM generation skipped: {Reason}", pmResult.Reason);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "✓ PM generation completed: {Success} generated, {Skipped} skipped, {Failed} failed",
+                    pmResult.SuccessCount,
+                    pmResult.SkippedCount,
+                    pmResult.FailureCount
+                );
+
+                if (pmResult.HasErrors)
+                {
+                    foreach (var error in pmResult.Errors)
+                    {
+                        logger.LogWarning("PM generation error: {Error}", error);
+                    }
+                }
+            }
         }
         else
         {
@@ -122,6 +155,7 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseMigrationsEndPoint();
 }
 else

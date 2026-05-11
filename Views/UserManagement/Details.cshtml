@@ -45,14 +45,7 @@
             </h1>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 @await Html.PartialAsync("_RoleBadge", Model.Roles)
-                @if (Model.IsActive)
-                {
-                    <span class="badge badge-done">Active</span>
-                }
-                else
-                {
-                    <span class="badge badge-cancelled">Inactive</span>
-                }
+                @await Html.PartialAsync("_UserStatusBadge", Model.IsActive)
                 @if (!Model.EmailConfirmed)
                 {
                     <span class="badge" style="background:rgba(250,204,21,.12);color:#ca8a04;">Email Unverified</span>
@@ -85,14 +78,7 @@
                 <div class="info-item">
                     <div class="info-label">Account Status</div>
                     <div class="info-value">
-                        @if (Model.IsActive)
-                        {
-                            <span class="badge badge-done">Active</span>
-                        }
-                        else
-                        {
-                            <span class="badge badge-cancelled">Inactive</span>
-                        }
+                        @await Html.PartialAsync("_UserStatusBadge", Model.IsActive)
                     </div>
                 </div>
                 <div class="info-item">

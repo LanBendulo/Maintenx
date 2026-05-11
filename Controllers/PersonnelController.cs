@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using IT15_Project.Models.ViewModels;
@@ -65,7 +66,8 @@ namespace IT15_Project.Controllers
                     var activeWorkOrders = await _context.WorkOrders
                         .CountAsync(w => w.CompanyId == companyId &&
                                         w.AssignedTo == person.PersonnelId &&
-                                        w.Status != "Completed" && w.Status != "Cancelled");
+                                        w.Status != WorkOrderStatuses.Completed && 
+                                        w.Status != WorkOrderStatuses.Cancelled);
 
                     personnelList.Add(new PersonnelListItemDto
                     {
@@ -107,7 +109,7 @@ namespace IT15_Project.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading personnel index");
-                return View("Error");
+                throw; // Re-throw to show full exception in Development mode
             }
         }
 
@@ -143,12 +145,13 @@ namespace IT15_Project.Controllers
                 var activeWorkOrders = await _context.WorkOrders
                     .CountAsync(w => w.CompanyId == companyId &&
                                     w.AssignedTo == personnel.PersonnelId &&
-                                    w.Status != "Completed" && w.Status != "Cancelled");
+                                    w.Status != WorkOrderStatuses.Completed && 
+                                    w.Status != WorkOrderStatuses.Cancelled);
 
                 var completedWorkOrders = await _context.WorkOrders
                     .CountAsync(w => w.CompanyId == companyId &&
                                     w.AssignedTo == personnel.PersonnelId &&
-                                    w.Status == "Completed");
+                                    w.Status == WorkOrderStatuses.Completed);
 
                 var totalWorkOrders = await _context.WorkOrders
                     .CountAsync(w => w.CompanyId == companyId &&
@@ -160,6 +163,7 @@ namespace IT15_Project.Controllers
                     .Include(w => w.Asset)
                     .Where(w => w.CompanyId == companyId && w.AssignedTo == personnel.PersonnelId)
                     .OrderByDescending(w => w.DateCreated)
+                    .ThenByDescending(w => w.WorkOrderId)
                     .Take(10)
                     .Select(w => new RecentWorkOrderDto
                     {

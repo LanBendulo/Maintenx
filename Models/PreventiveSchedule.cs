@@ -50,6 +50,24 @@ namespace IT15_Project.Models
         [Column("default_technician_id")]
         public int? DefaultTechnicianId { get; set; }
 
+        [Column("priority")]
+        [StringLength(20)]
+        public string Priority { get; set; } = "Medium";
+
+        [Column("last_generated_date")]
+        [DataType(DataType.Date)]
+        public DateTime? LastGeneratedDate { get; set; }
+
+        [Column("last_generated_work_order_id")]
+        public int? LastGeneratedWorkOrderId { get; set; }
+
+        [Column("last_generation_attempt")]
+        public DateTime? LastGenerationAttempt { get; set; }
+
+        [Column("last_generation_error")]
+        [StringLength(500)]
+        public string? LastGenerationError { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

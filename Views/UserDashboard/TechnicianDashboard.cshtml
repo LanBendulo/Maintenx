@@ -15,7 +15,7 @@
                 </svg>
             </div>
             <div class="stat-content">
-                <div class="stat-label">Open Work Orders</div>
+                <div class="stat-label">Pending Work Orders</div>
                 <div class="stat-value">@ViewBag.OpenCount</div>
             </div>
         </div>
@@ -86,8 +86,8 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="badge badge-@(wo.Status?.ToLower().Replace(" ", "-") ?? "open")">
-                                        @(wo.Status ?? "Open")
+                                    <span class="badge badge-@(wo.Status?.ToLower().Replace(" ", "-") ?? "pending")">
+                                        @(wo.Status ?? "Pending")
                                     </span>
                                 </td>
                                 <td>@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "Not set")</td>
@@ -233,7 +233,7 @@
 .badge-high { background: #FEE2E2; color: #991B1B; }
 .badge-medium { background: #FEF3C7; color: #92400E; }
 .badge-low { background: #DBEAFE; color: #1E40AF; }
-.badge-open { background: #FEF3C7; color: #92400E; }
+.badge-pending { background: #FEF3C7; color: #92400E; }
 .badge-in-progress { background: #DBEAFE; color: #1E40AF; }
 .badge-completed { background: #D1FAE5; color: #065F46; }
 .badge-cancelled { background: #F3F4F6; color: #374151; }

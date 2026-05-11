@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,21 +20,50 @@ namespace IT15_Project.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ITenantService _tenantService;
+        private readonly PreventiveMaintenanceGenerationService _generationService;
 
-        public PreventiveMaintenanceController(ApplicationDbContext context, ITenantService tenantService)
+        public PreventiveMaintenanceController(
+            ApplicationDbContext context, 
+            ITenantService tenantService,
+            PreventiveMaintenanceGenerationService generationService)
         {
             _context = context;
             _tenantService = tenantService;
+            _generationService = generationService;
         }
 
         /// <summary>
         /// List all preventive maintenance schedules
+        /// Triggers automatic PM work order generation on page load
         /// </summary>
         [HttpGet]
         [Route("")]
         public async Task<IActionResult> Index(string filter = "active")
         {
             var companyId = _tenantService.GetCurrentCompanyId();
+
+            // ─── AUTOMATIC PM GENERATION ───────────────────
+            // Execute PM generation for current company (throttled to prevent excessive execution)
+            try
+            {
+                var generationResult = await _generationService.GenerateDueWorkOrdersAsync(companyId);
+                
+                if (!generationResult.Skipped && generationResult.SuccessCount > 0)
+                {
+                    TempData["SuccessMessage"] = $"Automatically generated {generationResult.SuccessCount} PM work order(s)";
+                }
+
+                if (generationResult.HasErrors)
+                {
+                    TempData["WarningMessage"] = $"PM generation completed with {generationResult.FailureCount} error(s)";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't block page load
+                Console.WriteLine($"[PM Generation Error] {ex.Message}");
+            }
+            // ───────────────────────────────────────────────
 
             var query = _context.PreventiveSchedules
                 .Where(ps => ps.CompanyId == companyId)
@@ -77,7 +107,7 @@ namespace IT15_Project.Controllers
                 var companyId = _tenantService.GetCurrentCompanyId();
 
                 var assets = await _context.Assets
-                    .Where(a => a.CompanyId == companyId && a.Status != "Retired")
+                    .Where(a => a.CompanyId == companyId && a.Status != AssetStatuses.Retired)
                     .Select(a => new { value = a.AssetId, text = a.AssetName })
                     .ToListAsync();
 
@@ -170,6 +200,7 @@ namespace IT15_Project.Controllers
                     NextDueDate = request.NextDueDate,
                     IsActive = true,
                     DefaultTechnicianId = request.DefaultTechnicianId,
+                    Priority = request.Priority ?? "Medium",
                     CreatedAt = DateTime.Now
                 };
 
@@ -295,6 +326,10 @@ namespace IT15_Project.Controllers
                     schedule.NextDueDate = request.NextDueDate.Value;
 
                 schedule.DefaultTechnicianId = request.DefaultTechnicianId;
+                
+                if (!string.IsNullOrEmpty(request.Priority))
+                    schedule.Priority = request.Priority;
+                
                 schedule.UpdatedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();
@@ -414,8 +449,8 @@ namespace IT15_Project.Controllers
                     AssetId = schedule.AssetId,
                     AssignedTo = schedule.DefaultTechnicianId,
                     CreatedBy = currentPersonnel.PersonnelId,
-                    Status = "Open",
-                    Priority = "Medium",
+                    Status = WorkOrderStatuses.Pending,
+                    Priority = schedule.Priority ?? "Medium",
                     Description = $"{schedule.Title}\n\n{schedule.Description ?? "Preventive Maintenance"}",
                     DateCreated = DateTime.Now,
                     DueDate = schedule.NextDueDate,
@@ -425,7 +460,8 @@ namespace IT15_Project.Controllers
                 _context.WorkOrders.Add(workOrder);
 
                 // Update schedule
-                schedule.LastCompletedDate = DateTime.Today;
+                schedule.LastGeneratedDate = DateTime.Today;
+                schedule.LastGeneratedWorkOrderId = workOrder.WorkOrderId;
                 schedule.NextDueDate = DateTime.Today.AddDays(schedule.FrequencyDays);
                 schedule.UpdatedAt = DateTime.Now;
 
@@ -454,6 +490,7 @@ namespace IT15_Project.Controllers
         public int FrequencyDays { get; set; }
         public DateTime NextDueDate { get; set; }
         public int? DefaultTechnicianId { get; set; }
+        public string Priority { get; set; } = "Medium";
     }
 
     public class EditScheduleRequest
@@ -464,5 +501,6 @@ namespace IT15_Project.Controllers
         public int? FrequencyDays { get; set; }
         public DateTime? NextDueDate { get; set; }
         public int? DefaultTechnicianId { get; set; }
+        public string? Priority { get; set; }
     }
 }

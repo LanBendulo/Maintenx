@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
@@ -23,17 +24,20 @@ namespace IT15_Project.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITenantService _tenantService;
         private readonly ICostService _costService;
+        private readonly AssetStatusService _assetStatusService;
 
         public DashboardController(
             ApplicationDbContext context, 
             UserManager<ApplicationUser> userManager,
             ITenantService tenantService,
-            ICostService costService)
+            ICostService costService,
+            AssetStatusService assetStatusService)
         {
             _context = context;
             _userManager = userManager;
             _tenantService = tenantService;
             _costService = costService;
+            _assetStatusService = assetStatusService;
         }
 
         [Route("dashboard")]
@@ -62,17 +66,17 @@ namespace IT15_Project.Controllers
                     .Where(mr => mr.CompanyId == companyId && mr.Status == "Pending")
                     .CountAsync();
 
-                // Active Work Orders (Open or In Progress)
+                // Active Work Orders (Pending or In Progress)
                 viewModel.ActiveWorkOrders = await _context.WorkOrders
                     .AsNoTracking()
                     .Where(wo => wo.CompanyId == companyId && 
-                                (wo.Status == "Open" || wo.Status == "In Progress"))
+                                (wo.Status == WorkOrderStatuses.Pending || wo.Status == WorkOrderStatuses.InProgress))
                     .CountAsync();
 
                 // Total Assets
                 viewModel.TotalAssets = await _context.Assets
                     .AsNoTracking()
-                    .Where(a => a.CompanyId == companyId && a.Status != "Retired")
+                    .Where(a => a.CompanyId == companyId && a.Status != AssetStatuses.Retired)
                     .CountAsync();
 
                 // ========================================
@@ -108,7 +112,7 @@ namespace IT15_Project.Controllers
                 viewModel.OngoingWorkOrders = await _context.WorkOrders
                     .AsNoTracking()
                     .Where(wo => wo.CompanyId == companyId && 
-                                (wo.Status == "Open" || wo.Status == "In Progress"))
+                                (wo.Status == WorkOrderStatuses.Pending || wo.Status == WorkOrderStatuses.InProgress))
                     .OrderByDescending(wo => wo.Priority == "High" ? 3 : wo.Priority == "Medium" ? 2 : 1)
                     .ThenByDescending(wo => wo.DateCreated)
                     .Take(10)
@@ -119,9 +123,9 @@ namespace IT15_Project.Controllers
                         AssetName = wo.Asset != null ? wo.Asset.AssetName : "N/A",
                         TechnicianName = wo.AssignedToPersonnel != null ? wo.AssignedToPersonnel.FullName : "Unassigned",
                         Priority = wo.Priority ?? "Medium",
-                        Status = wo.Status ?? "Open",
+                        Status = wo.Status ?? WorkOrderStatuses.Pending,
                         DueDate = wo.DueDate,
-                        ProgressPercentage = wo.Status == "In Progress" ? 50 : 0
+                        ProgressPercentage = wo.Status == WorkOrderStatuses.InProgress ? 50 : 0
                     })
                     .ToListAsync();
 
@@ -137,8 +141,8 @@ namespace IT15_Project.Controllers
                     .Where(wo => wo.CompanyId == companyId &&
                                 wo.DueDate.HasValue &&
                                 wo.DueDate.Value < DateTime.Now &&
-                                wo.Status != "Completed" &&
-                                wo.Status != "Cancelled")
+                                wo.Status != WorkOrderStatuses.Completed &&
+                                wo.Status != WorkOrderStatuses.Cancelled)
                     .OrderBy(wo => wo.DueDate)
                     .Take(5)
                     .Select(wo => new DashboardAlertDto
@@ -287,6 +291,7 @@ namespace IT15_Project.Controllers
 
             var workOrders = await query
                 .OrderByDescending(w => w.DateCreated)
+                .ThenByDescending(w => w.WorkOrderId)
                 .ToListAsync();
 
             ViewBag.Filter = filter;
@@ -344,6 +349,13 @@ namespace IT15_Project.Controllers
                     });
                 }
 
+                // ASSET STATUS VALIDATION: Check if asset can have a new work order
+                var validationError = await _assetStatusService.ValidateAssetForWorkOrderAsync(model.AssetId, companyId);
+                if (validationError != null)
+                {
+                    return BadRequest(new { success = false, message = validationError });
+                }
+
                 // If linked to a maintenance request, validate it
                 if (model.MaintenanceRequestId.HasValue)
                 {
@@ -357,12 +369,12 @@ namespace IT15_Project.Controllers
                         return BadRequest(new { success = false, message = "Maintenance request not found." });
                     }
 
-                    if (request.Status != "Approved")
+                    if (request.Status != MaintenanceRequestStatuses.Approved)
                     {
                         return BadRequest(new { success = false, message = "Only approved requests can be converted to work orders." });
                     }
 
-                    if (request.WorkOrder != null)
+                    if (request.ConvertedWorkOrderId.HasValue || request.WorkOrder != null)
                     {
                         return BadRequest(new { success = false, message = "This request has already been converted to a work order." });
                     }
@@ -379,7 +391,7 @@ namespace IT15_Project.Controllers
                     AssetId = model.AssetId,
                     AssignedTo = model.AssignedTo,
                     CreatedBy = currentPersonnel.PersonnelId,
-                    Status = "Open",
+                    Status = WorkOrderStatuses.Pending,
                     Priority = model.Priority,
                     Description = model.Description + (string.IsNullOrEmpty(model.Notes) ? "" : "\n\nNotes: " + model.Notes),
                     DateCreated = model.DateCreated,
@@ -388,8 +400,13 @@ namespace IT15_Project.Controllers
                 };
 
                 _context.WorkOrders.Add(workOrder);
+                Console.WriteLine("[CreateWorkOrder] Work order added to context");
+
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"[CreateWorkOrder] Work order saved with ID: {workOrder.WorkOrderId}");
 
                 // If linked to request, update request status to Converted
+                // IMPORTANT: Must happen AFTER SaveChanges so WorkOrderId is populated
                 if (model.MaintenanceRequestId.HasValue)
                 {
                     var request = await _context.MaintenanceRequests
@@ -398,12 +415,19 @@ namespace IT15_Project.Controllers
                     
                     if (request != null)
                     {
-                        request.Status = "Converted";
+                        request.Status = MaintenanceRequestStatuses.Converted;
+                        request.ConvertedWorkOrderId = workOrder.WorkOrderId;
+                        request.ConvertedAt = DateTime.Now;
+                        request.ConvertedByUserId = userId;
                         request.UpdatedAt = DateTime.Now;
+                        
+                        await _context.SaveChangesAsync();
+                        Console.WriteLine($"[CreateWorkOrder] Maintenance Request {request.RequestId} marked as Converted");
                     }
                 }
 
-                await _context.SaveChangesAsync();
+                // ASSET STATUS UPDATE: Mark asset as Under Maintenance
+                await _assetStatusService.OnWorkOrderCreatedAsync(workOrder.WorkOrderId, userId);
 
                 return Ok(new { 
                     success = true, 
@@ -418,8 +442,7 @@ namespace IT15_Project.Controllers
                 return StatusCode(500, new { 
                     success = false, 
                     message = "An error occurred while creating the work order.", 
-                    error = ex.Message,
-                    innerError = ex.InnerException?.Message 
+                    error = ex.Message
                 });
             }
         }
@@ -437,6 +460,7 @@ namespace IT15_Project.Controllers
                 .Include(w => w.AssignedToPersonnel)
                 .Include(w => w.MaintenanceRequest)
                 .OrderByDescending(w => w.DateCreated)
+                .ThenByDescending(w => w.WorkOrderId)
                 .Select(w => new
                 {
                     workOrderId = w.WorkOrderId,
@@ -493,7 +517,7 @@ namespace IT15_Project.Controllers
                 }
 
                 // Check if approved
-                if (request.Status != "Approved")
+                if (request.Status != MaintenanceRequestStatuses.Approved)
                 {
                     return BadRequest(new { 
                         success = false, 
@@ -578,8 +602,9 @@ namespace IT15_Project.Controllers
             
             var requests = await _context.MaintenanceRequests
                 .Where(mr => mr.CompanyId == companyId &&  // TENANT FILTER
-                             mr.Status == "Approved" && 
-                             mr.WorkOrder == null)
+                             mr.Status == MaintenanceRequestStatuses.Approved && 
+                             mr.WorkOrder == null &&
+                             mr.ConvertedWorkOrderId == null)
                 .Include(mr => mr.Asset)
                 .Include(mr => mr.WorkOrder)
                 .Select(mr => new {
@@ -655,7 +680,7 @@ namespace IT15_Project.Controllers
 
         /// <summary>
         /// Update Work Order costs (labor and other)
-        /// Only allowed when status is Open or InProgress
+        /// Only allowed when status is Pending or In Progress
         /// </summary>
         [HttpPost]
         [Route("work-orders/{id}/update-cost")]
@@ -687,7 +712,7 @@ namespace IT15_Project.Controllers
                 {
                     return BadRequest(new { 
                         success = false, 
-                        message = "Cannot update costs. Work order must be Open or In Progress." 
+                        message = "Cannot update costs. Work order must be Pending or In Progress." 
                     });
                 }
 
@@ -736,32 +761,24 @@ namespace IT15_Project.Controllers
                     return BadRequest(new { success = false, message = "Cannot update status of archived work orders." });
                 }
 
-                // Validate status transitions
-                var validTransitions = new Dictionary<string, List<string>>
-                {
-                    { "Open", new List<string> { "In Progress", "Cancelled" } },
-                    { "In Progress", new List<string> { "Completed", "Cancelled" } },
-                    { "Completed", new List<string>() }, // No transitions from Completed
-                    { "Cancelled", new List<string>() }  // No transitions from Cancelled
-                };
-
-                var currentStatus = workOrder.Status ?? "Open";
+                // Validate status transitions using centralized logic
+                var currentStatus = workOrder.Status ?? WorkOrderStatuses.Pending;
                 var newStatus = request.Status;
 
                 if (currentStatus != newStatus)
                 {
-                    if (!validTransitions.ContainsKey(currentStatus) || 
-                        !validTransitions[currentStatus].Contains(newStatus))
+                    if (!WorkOrderStatuses.IsValidTransition(currentStatus, newStatus))
                     {
+                        var validTransitions = WorkOrderStatuses.GetValidTransitions(currentStatus);
                         return BadRequest(new { 
                             success = false, 
-                            message = $"Invalid status transition from '{currentStatus}' to '{newStatus}'. Allowed transitions: {string.Join(", ", validTransitions.GetValueOrDefault(currentStatus, new List<string>()))}" 
+                            message = $"Invalid status transition from '{currentStatus}' to '{newStatus}'. Allowed transitions: {string.Join(", ", validTransitions)}" 
                         });
                     }
                 }
 
                 // If setting to Completed, require ActualCompletion
-                if (newStatus == "Completed")
+                if (newStatus == WorkOrderStatuses.Completed)
                 {
                     if (!request.ActualCompletion.HasValue)
                     {
@@ -807,6 +824,13 @@ namespace IT15_Project.Controllers
                 workOrder.Status = newStatus;
                 await _context.SaveChangesAsync();
 
+                // ASSET STATUS UPDATE: Handle Completed/Cancelled transitions
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (newStatus == WorkOrderStatuses.Completed || newStatus == WorkOrderStatuses.Cancelled)
+                {
+                    await _assetStatusService.OnWorkOrderCompletedOrCancelledAsync(workOrder.WorkOrderId, userId);
+                }
+
                 return Ok(new { success = true, message = "Status updated successfully!" });
             }
             catch (Exception ex)
@@ -835,7 +859,7 @@ namespace IT15_Project.Controllers
                 }
 
                 // RULE 1: Cannot edit Completed or Cancelled work orders
-                if (workOrder.Status == "Completed" || workOrder.Status == "Cancelled")
+                if (WorkOrderStatuses.IsTerminal(workOrder.Status))
                 {
                     return BadRequest(new { 
                         success = false, 
@@ -962,7 +986,7 @@ namespace IT15_Project.Controllers
                 }
 
                 // RULE: Can only archive if status is Completed or Cancelled
-                if (workOrder.Status != "Completed" && workOrder.Status != "Cancelled")
+                if (!WorkOrderStatuses.CanArchive(workOrder.Status))
                 {
                     return BadRequest(new { 
                         success = false, 
@@ -1112,7 +1136,7 @@ namespace IT15_Project.Controllers
                 }
 
                 // Cannot add parts to completed or cancelled work orders
-                if (workOrder.Status == "Completed" || workOrder.Status == "Cancelled")
+                if (WorkOrderStatuses.IsTerminal(workOrder.Status))
                 {
                     return BadRequest(new
                     {
@@ -1211,7 +1235,7 @@ namespace IT15_Project.Controllers
                 }
 
                 // Cannot remove parts from completed or cancelled work orders
-                if (workOrder.Status == "Completed" || workOrder.Status == "Cancelled")
+                if (WorkOrderStatuses.IsTerminal(workOrder.Status))
                 {
                     return BadRequest(new
                     {

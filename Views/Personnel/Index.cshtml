@@ -182,27 +182,7 @@
                             }
                         </td>
                         <td>
-                            @switch (person.Status)
-                            {
-                                case "Active":
-                                    <span class="badge badge-done">Active</span>
-                                    break;
-                                case "Inactive":
-                                    <span class="badge badge-cancelled">Inactive</span>
-                                    break;
-                                case "OnLeave":
-                                    <span class="badge badge-pending">On Leave</span>
-                                    break;
-                                case "Retired":
-                                    <span class="badge" style="background:rgba(100,116,139,.12);color:#64748b;">Retired</span>
-                                    break;
-                                case "Terminated":
-                                    <span class="badge" style="background:rgba(239,68,68,.12);color:#dc2626;">Terminated</span>
-                                    break;
-                                default:
-                                    <span class="badge">@person.Status</span>
-                                    break;
-                            }
+                            @await Html.PartialAsync("_PersonnelStatusBadge", person.Status)
                         </td>
                         <td>
                             @if (person.HasUserAccount)

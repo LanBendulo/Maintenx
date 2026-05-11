@@ -76,6 +76,23 @@ namespace IT15_Project.Models
         [StringLength(450)]
         public string? ArchivedByUserId { get; set; }
 
+        [Column("converted_work_order_id")]
+        public int? ConvertedWorkOrderId { get; set; }
+
+        [Column("converted_at")]
+        public DateTime? ConvertedAt { get; set; }
+
+        [Column("converted_by_user_id")]
+        [StringLength(450)]
+        public string? ConvertedByUserId { get; set; }
+
+        [Column("closed_at")]
+        public DateTime? ClosedAt { get; set; }
+
+        [Column("closed_by_user_id")]
+        [StringLength(450)]
+        public string? ClosedByUserId { get; set; }
+
         // Navigation properties
         [ForeignKey("CompanyId")]
         public virtual Company? Company { get; set; }
@@ -88,6 +105,12 @@ namespace IT15_Project.Models
 
         [ForeignKey("ArchivedByUserId")]
         public virtual ApplicationUser? ArchivedByUser { get; set; }
+
+        [ForeignKey("ConvertedByUserId")]
+        public virtual ApplicationUser? ConvertedByUser { get; set; }
+
+        [ForeignKey("ClosedByUserId")]
+        public virtual ApplicationUser? ClosedByUser { get; set; }
 
         // One-to-one relationship with WorkOrder
         public virtual WorkOrder? WorkOrder { get; set; }

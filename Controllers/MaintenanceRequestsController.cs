@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -145,7 +146,7 @@ namespace IT15_Project.Controllers
                     Description = model.Description,
                     AssetId = model.AssetId,
                     Priority = model.Priority,
-                    Status = "Pending",
+                    Status = MaintenanceRequestStatuses.Pending,
                     RequestedBy = currentPersonnel?.PersonnelId,
                     Category = model.Category,
                     Location = model.Location,
@@ -228,7 +229,10 @@ namespace IT15_Project.Controllers
                     attachmentUrl = request.AttachmentUrl,
                     createdAt = request.CreatedAt,
                     updatedAt = request.UpdatedAt,
-                    workOrderId = request.WorkOrder?.WorkOrderId
+                    workOrderId = request.WorkOrder?.WorkOrderId,
+                    convertedWorkOrderId = request.ConvertedWorkOrderId,
+                    convertedAt = request.ConvertedAt,
+                    closedAt = request.ClosedAt
                 };
 
                 return Ok(result);
@@ -257,12 +261,16 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Maintenance request not found." });
                 }
 
-                if (request.Status != "Pending")
+                // LIFECYCLE VALIDATION: Can only approve Pending requests
+                if (!MaintenanceRequestStatuses.CanApprove(request.Status))
                 {
-                    return BadRequest(new { success = false, message = "Only pending requests can be approved." });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Cannot approve request with status '{request.Status}'. Only pending requests can be approved." 
+                    });
                 }
 
-                request.Status = "Approved";
+                request.Status = MaintenanceRequestStatuses.Approved;
                 request.UpdatedAt = DateTime.Now;
                 await _context.SaveChangesAsync();
 
@@ -292,16 +300,20 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Maintenance request not found." });
                 }
 
-                if (request.Status != "Pending")
+                // LIFECYCLE VALIDATION: Can only reject Pending requests
+                if (!MaintenanceRequestStatuses.CanReject(request.Status))
                 {
-                    return BadRequest(new { success = false, message = "Only pending requests can be rejected." });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Cannot reject request with status '{request.Status}'. Only pending requests can be rejected." 
+                    });
                 }
 
-                request.Status = "Rejected";
+                request.Status = MaintenanceRequestStatuses.Rejected;
                 request.UpdatedAt = DateTime.Now;
                 await _context.SaveChangesAsync();
 
-                return Ok(new { success = false, message = "Request rejected successfully!" });
+                return Ok(new { success = true, message = "Request rejected successfully!" });
             }
             catch (Exception ex)
             {
@@ -318,6 +330,7 @@ namespace IT15_Project.Controllers
             {
                 // TENANT-AWARE: Filter by current company
                 var companyId = _tenantService.GetCurrentCompanyId();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 
                 var request = await _context.MaintenanceRequests
                     .Where(mr => mr.RequestId == id && mr.CompanyId == companyId)  // TENANT FILTER
@@ -329,18 +342,35 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Maintenance request not found." });
                 }
 
-                if (request.Status != "Approved")
+                // LIFECYCLE VALIDATION: Can only convert Approved requests
+                if (!MaintenanceRequestStatuses.CanConvert(request.Status))
                 {
-                    return BadRequest(new { success = false, message = "Only approved requests can be converted to work orders." });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Cannot convert request with status '{request.Status}'. Only approved requests can be converted to work orders." 
+                    });
+                }
+
+                // DUPLICATE PREVENTION: Check if already converted
+                if (request.ConvertedWorkOrderId.HasValue)
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "This maintenance request has already been converted to a work order.",
+                        workOrderId = request.ConvertedWorkOrderId.Value
+                    });
                 }
 
                 if (request.WorkOrder != null)
                 {
-                    return BadRequest(new { success = false, message = "This request has already been converted to a work order." });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "This request has already been converted to a work order.",
+                        workOrderId = request.WorkOrder.WorkOrderId
+                    });
                 }
 
                 // Get current user's personnel record
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var currentPersonnel = await _context.Personnel
                     .Where(p => p.CompanyId == companyId)  // TENANT FILTER
                     .FirstOrDefaultAsync(p => p.UserId == userId);
@@ -357,16 +387,21 @@ namespace IT15_Project.Controllers
                     AssetId = request.AssetId,
                     Description = $"{request.Title}\n\n{request.Description}",
                     Priority = request.Priority,
-                    Status = "Pending",
+                    Status = WorkOrderStatuses.Pending,
                     CreatedBy = currentPersonnel.PersonnelId,
                     DateCreated = DateTime.Now,
-                    MaintenanceRequestId = request.RequestId
+                    MaintenanceRequestId = request.RequestId,
+                    Source = "Request"
                 };
 
                 _context.WorkOrders.Add(workOrder);
+                await _context.SaveChangesAsync();
 
-                // Update maintenance request status
-                request.Status = "Converted";
+                // UPDATE MAINTENANCE REQUEST: Set to Converted with full tracking
+                request.Status = MaintenanceRequestStatuses.Converted;
+                request.ConvertedWorkOrderId = workOrder.WorkOrderId;
+                request.ConvertedAt = DateTime.Now;
+                request.ConvertedByUserId = userId;
                 request.UpdatedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();
@@ -399,9 +434,51 @@ namespace IT15_Project.Controllers
                 
                 var count = await _context.MaintenanceRequests
                     .Where(mr => mr.CompanyId == companyId)  // TENANT FILTER
-                    .CountAsync(mr => mr.Status == "Pending" && !mr.IsArchived);
+                    .CountAsync(mr => mr.Status == MaintenanceRequestStatuses.Pending && !mr.IsArchived);
 
                 return Ok(new { count });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+            }
+        }
+
+        [HttpPut]
+        [Route("{id}/close")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
+        public async Task<IActionResult> Close(int id)
+        {
+            try
+            {
+                // TENANT-AWARE: Validate ownership before update
+                var companyId = _tenantService.GetCurrentCompanyId();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                
+                var request = await _context.MaintenanceRequests
+                    .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
+
+                if (request == null)
+                {
+                    return NotFound(new { success = false, message = "Maintenance request not found." });
+                }
+
+                // LIFECYCLE VALIDATION: Can only close Pending or Approved requests
+                if (!MaintenanceRequestStatuses.CanClose(request.Status))
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Cannot close request with status '{request.Status}'. Only pending or approved requests can be closed." 
+                    });
+                }
+
+                request.Status = MaintenanceRequestStatuses.Closed;
+                request.ClosedAt = DateTime.Now;
+                request.ClosedByUserId = userId;
+                request.UpdatedAt = DateTime.Now;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Request closed successfully!" });
             }
             catch (Exception ex)
             {
@@ -418,6 +495,7 @@ namespace IT15_Project.Controllers
             {
                 // TENANT-AWARE: Validate ownership before archive
                 var companyId = _tenantService.GetCurrentCompanyId();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 
                 var request = await _context.MaintenanceRequests
                     .FirstOrDefaultAsync(mr => mr.RequestId == id && mr.CompanyId == companyId);  // TENANT FILTER
@@ -427,12 +505,12 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Maintenance request not found." });
                 }
 
-                // RULE: Can only archive if status is Rejected or Converted
-                if (request.Status != "Rejected" && request.Status != "Converted")
+                // LIFECYCLE VALIDATION: Can only archive terminal statuses
+                if (!MaintenanceRequestStatuses.CanArchive(request.Status))
                 {
                     return BadRequest(new { 
                         success = false, 
-                        message = "Only rejected or converted requests can be archived. Current status: " + request.Status 
+                        message = $"Cannot archive request with status '{request.Status}'. Only rejected, converted, or closed requests can be archived." 
                     });
                 }
 
@@ -440,9 +518,6 @@ namespace IT15_Project.Controllers
                 {
                     return BadRequest(new { success = false, message = "Request is already archived." });
                 }
-
-                // Get current user ID
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
                 request.IsArchived = true;
                 request.ArchivedAt = DateTime.Now;
@@ -523,7 +598,7 @@ namespace IT15_Project.Controllers
 
                 // Get active assets for the company
                 var assets = await _context.Assets
-                    .Where(a => a.CompanyId == companyId && a.Status == "Active")  // TENANT FILTER + Active only
+                    .Where(a => a.CompanyId == companyId && a.Status == AssetStatuses.Active)  // TENANT FILTER + Active only
                     .OrderBy(a => a.AssetName)
                     .Select(a => new { 
                         value = a.AssetId, 

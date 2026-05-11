@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -33,9 +34,9 @@ namespace IT15_Project.Controllers
 
             // Status filter
             if (status == "active")
-                query = query.Where(a => a.Status == "Active");
+                query = query.Where(a => a.Status == AssetStatuses.Active);
             else if (status == "inactive")
-                query = query.Where(a => a.Status == "Inactive");
+                query = query.Where(a => a.Status == AssetStatuses.OutOfService);
 
             // Search filter
             if (!string.IsNullOrEmpty(search))
@@ -73,6 +74,7 @@ namespace IT15_Project.Controllers
                 .Where(w => w.AssetId == id && w.CompanyId == companyId)
                 .Include(w => w.AssignedToPersonnel)
                 .OrderByDescending(w => w.DateCreated)
+                .ThenByDescending(w => w.WorkOrderId)
                 .Take(10)
                 .ToListAsync();
 
@@ -140,7 +142,7 @@ namespace IT15_Project.Controllers
                 Console.WriteLine($"[ASSET LIST] Request received from User: {userId}, CompanyId: {companyId}, Roles: {string.Join(", ", userRoles)}");
 
                 var assets = await _context.Assets
-                    .Where(a => a.CompanyId == companyId && a.Status == "Active")
+                    .Where(a => a.CompanyId == companyId && a.Status == AssetStatuses.Active)
                     .OrderBy(a => a.AssetName)
                     .Select(a => new { 
                         value = a.AssetId, 
@@ -203,7 +205,7 @@ namespace IT15_Project.Controllers
                     CategoryId = request.CategoryId,
                     Location = request.Location,
                     Description = request.Description,
-                    Status = "Active",
+                    Status = AssetStatuses.Active,
                     CreatedAt = DateTime.Now
                 };
 
@@ -318,7 +320,7 @@ namespace IT15_Project.Controllers
                 if (asset == null)
                     return NotFound(new { success = false, message = "Asset not found." });
 
-                asset.Status = asset.Status == "Active" ? "Inactive" : "Active";
+                asset.Status = asset.Status == AssetStatuses.Active ? AssetStatuses.OutOfService : AssetStatuses.Active;
                 asset.UpdatedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();

@@ -1,0 +1,9 @@
+@model bool
+
+@{
+    var isActive = Model;
+    var badgeClass = isActive ? "badge-done" : "badge-cancelled";
+    var statusText = isActive ? "Active" : "Inactive";
+}
+
+<span class="badge @badgeClass">@statusText</span>

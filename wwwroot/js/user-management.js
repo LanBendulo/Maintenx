@@ -8,6 +8,16 @@ let currentDropdown = null;
 
 // ── Initialize ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+    // Force-clear search input to prevent Chrome autofill
+    const searchInput = document.getElementById('userFilterQueryInput');
+    if (searchInput) {
+        searchInput.value = '';
+        // Force Chrome repaint/update
+        setTimeout(() => {
+            searchInput.value = '';
+        }, 50);
+    }
+    
     initializeFilters();
     initializeDropdowns();
     initializeModals();
@@ -15,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── Filter & Search ───────────────────────────────────────────────────────────
 function initializeFilters() {
-    const searchInput = document.getElementById('searchInput');
+    const searchInput = document.getElementById('userFilterQueryInput');
     const roleFilter = document.getElementById('roleFilter');
     const statusFilter = document.getElementById('statusFilter');
     const resetBtn = document.getElementById('reset-filters');
@@ -35,14 +45,14 @@ function initializeFilters() {
 }
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
+    document.getElementById('userFilterQueryInput').value = '';
     document.getElementById('roleFilter').value = '';
     document.getElementById('statusFilter').value = '';
     applyFilters();
 }
 
 function applyFilters() {
-    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const searchTerm = document.getElementById('userFilterQueryInput')?.value.toLowerCase() || '';
     const roleFilter = document.getElementById('roleFilter')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value.toLowerCase() || '';
 

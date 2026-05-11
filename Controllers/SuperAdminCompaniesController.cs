@@ -96,6 +96,7 @@ namespace IT15_Project.Controllers
                     .AsNoTracking()
                     .Where(w => w.CompanyId == id)
                     .OrderByDescending(w => w.DateCreated)
+                    .ThenByDescending(w => w.WorkOrderId)
                     .Take(5)
                     .Select(w => new RecentWorkOrderDto
                     {

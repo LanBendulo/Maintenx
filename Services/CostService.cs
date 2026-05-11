@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using Microsoft.EntityFrameworkCore;
@@ -71,7 +72,7 @@ namespace IT15_Project.Services
 
         /// <summary>
         /// Update labor and other costs
-        /// Only allowed when Work Order is Open or InProgress
+        /// Only allowed when Work Order is Pending or InProgress
         /// </summary>
         public async Task<bool> UpdateCostsAsync(int workOrderId, int companyId, decimal laborCost, decimal otherCost)
         {
@@ -90,8 +91,8 @@ namespace IT15_Project.Services
                 return false;
             }
 
-            // Only allow updates when Open or InProgress
-            if (workOrder.Status != "Open" && workOrder.Status != "In Progress")
+            // Only allow updates when Pending or InProgress
+            if (workOrder.Status != WorkOrderStatuses.Pending && workOrder.Status != WorkOrderStatuses.InProgress)
             {
                 return false;
             }

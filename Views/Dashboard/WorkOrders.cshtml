@@ -71,6 +71,7 @@
             <option value="pending">Pending</option>
             <option value="inprog">In Progress</option>
             <option value="done">Completed</option>
+            <option value="cancelled">Cancelled</option>
         </select>
         <select class="filter-select" id="filter-priority">
             <option value="">All Priority</option>
@@ -127,6 +128,7 @@
                             "pending" => "pending",
                             "in progress" => "inprog",
                             "completed" => "done",
+                            "cancelled" => "cancelled",
                             _ => "pending"
                         };
                         
@@ -159,7 +161,7 @@
                                 </div>
                             </td>
                             <td><span class="badge-priority-@priorityClass">@wo.Priority</span></td>
-                            <td><span class="badge badge-@statusClass">@wo.Status</span></td>
+                            <td>@await Html.PartialAsync("_WorkOrderStatusBadge", wo.Status)</td>
                             <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DateCreated?.ToString("MMM dd, yyyy") ?? "-")</td>
                             <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "-")</td>
                             <td style="text-align:right;">
@@ -170,10 +172,8 @@
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Details
                                         </a>
-                                        @if (wo.Status != null && (wo.Status.Equals("Open", StringComparison.OrdinalIgnoreCase) || 
-                                            wo.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase) ||
-                                            wo.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
-                                            wo.Status.Equals("inprog", StringComparison.OrdinalIgnoreCase)))
+                                        @if (wo.Status != null && (wo.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase) || 
+                                            wo.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase)))
                                         {
                                             <a href="#" class="action-edit" data-wo-id="@wo.WorkOrderId">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -633,7 +633,7 @@
                 <div style="background:#F0F4F8;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
                         <span style="font-size:13px;font-weight:600;color:var(--mx-muted);">Current Status:</span>
-                        <span id="status-current-badge" class="badge badge-pending">Open</span>
+                        <span id="status-current-badge" class="badge badge-pending">Pending</span>
                     </div>
                 </div>
 
@@ -642,7 +642,7 @@
                     <label class="mx-label">New Status <span class="required">*</span></label>
                     <select class="mx-select" id="status-new" required>
                         <option value="">Select new status…</option>
-                        <option value="Open">Open</option>
+                        <option value="Pending">Pending</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>

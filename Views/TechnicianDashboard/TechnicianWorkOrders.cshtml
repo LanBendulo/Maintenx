@@ -33,10 +33,10 @@
             <div class="stat-icon orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </div>
-            <span class="stat-trend warn">● @(Model?.Count(w => w.Status == "Open") ?? 0)</span>
+            <span class="stat-trend warn">● @(Model?.Count(w => w.Status == "Pending") ?? 0)</span>
         </div>
-        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(w => w.Status == "Open") ?? 0)</div>
-        <div class="stat-label">Open</div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(w => w.Status == "Pending") ?? 0)</div>
+        <div class="stat-label">Pending</div>
     </div>
     <div class="stat-card navy">
         <div class="stat-top">
@@ -69,9 +69,10 @@
         </div>
         <select class="filter-select" id="filter-status">
             <option value="">All Status</option>
-            <option value="open" selected="@(ViewBag.StatusFilter == "open" ? "selected" : null)">Open</option>
-            <option value="inprog" selected="@(ViewBag.StatusFilter == "in-progress" || ViewBag.StatusFilter == "inprogress" ? "selected" : null)">In Progress</option>
-            <option value="done" selected="@(ViewBag.StatusFilter == "completed" ? "selected" : null)">Completed</option>
+            <option value="pending" selected="@(ViewBag.StatusFilter == "pending" ? "selected" : null)">Pending</option>
+            <option value="inprogress" selected="@(ViewBag.StatusFilter == "in-progress" || ViewBag.StatusFilter == "inprogress" ? "selected" : null)">In Progress</option>
+            <option value="completed" selected="@(ViewBag.StatusFilter == "completed" ? "selected" : null)">Completed</option>
+            <option value="cancelled" selected="@(ViewBag.StatusFilter == "cancelled" ? "selected" : null)">Cancelled</option>
         </select>
         <select class="filter-select" id="filter-priority">
             <option value="">All Priority</option>
@@ -113,9 +114,10 @@
                     {
                         var statusClass = wo.Status?.ToLower() switch
                         {
-                            "open" => "pending",
+                            "pending" => "pending",
                             "in progress" => "inprog",
                             "completed" => "done",
+                            "cancelled" => "cancelled",
                             _ => "pending"
                         };
                         
@@ -136,7 +138,7 @@
                                 </div>
                             </td>
                             <td><span class="badge-priority-@priorityClass">@wo.Priority</span></td>
-                            <td><span class="badge badge-@statusClass">@wo.Status</span></td>
+                            <td>@await Html.PartialAsync("_WorkOrderStatusBadge", wo.Status)</td>
                             <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DateCreated?.ToString("MMM dd, yyyy") ?? "-")</td>
                             <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DueDate?.ToString("MMM dd, yyyy") ?? "-")</td>
                             <td style="text-align:right;">
@@ -147,7 +149,7 @@
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Details
                                         </a>
-                                        @if (wo.Status == "Open")
+                                        @if (wo.Status == "Pending")
                                         {
                                             <a href="#" class="action-start-work" data-wo-id="@wo.WorkOrderId">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>

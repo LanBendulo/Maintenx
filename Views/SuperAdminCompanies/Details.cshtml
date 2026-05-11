@@ -18,14 +18,7 @@
     <div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h1 style="font-size:28px;font-weight:700;color:#1A2B4A;margin:0;">@company.CompanyName</h1>
-            @if (company.IsActive)
-            {
-                <span class="badge badge-done">Active</span>
-            }
-            else
-            {
-                <span class="badge badge-cancelled">Suspended</span>
-            }
+            @await Html.PartialAsync("_CompanyStatusBadge", company.IsActive)
         </div>
         <div style="display:flex;align-items:center;gap:16px;color:var(--mx-muted);font-size:14px;">
             <span>
@@ -207,14 +200,7 @@
             <div class="info-row">
                 <span class="info-label">Status</span>
                 <span class="info-value">
-                    @if (company.IsActive)
-                    {
-                        <span class="badge badge-done">Active</span>
-                    }
-                    else
-                    {
-                        <span class="badge badge-cancelled">Suspended</span>
-                    }
+                    @await Html.PartialAsync("_CompanyStatusBadge", company.IsActive)
                 </span>
             </div>
         </div>

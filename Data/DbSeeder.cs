@@ -493,70 +493,70 @@ namespace IT15_Project.Data
                     AssetName = "Chiller Unit #1 - Building A",
                     CategoryId = hvacCategory.CategoryId,
                     Location = "Rooftop - Building A",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2020, 3, 15)
                 },
                 new {
                     AssetName = "Air Handling Unit - 3rd Floor",
                     CategoryId = hvacCategory.CategoryId,
                     Location = "Mechanical Room - 3rd Floor",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2021, 6, 10)
                 },
                 new {
                     AssetName = "Main Electrical Panel - Building A",
                     CategoryId = electricalCategory.CategoryId,
                     Location = "Electrical Room - Ground Floor",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2019, 1, 20)
                 },
                 new {
                     AssetName = "Emergency Generator #1",
                     CategoryId = electricalCategory.CategoryId,
                     Location = "Generator Room - Basement",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2018, 11, 5)
                 },
                 new {
                     AssetName = "Water Pump - Main Supply",
                     CategoryId = plumbingCategory.CategoryId,
                     Location = "Pump Room - Basement",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2020, 8, 12)
                 },
                 new {
                     AssetName = "Boiler System #1",
                     CategoryId = hvacCategory.CategoryId,
                     Location = "Boiler Room - Basement",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2019, 9, 25)
                 },
                 new {
                     AssetName = "Elevator #1 - Main Building",
                     CategoryId = mechanicalCategory.CategoryId,
                     Location = "Main Building - Lobby",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2017, 4, 18)
                 },
                 new {
                     AssetName = "Fire Suppression System - Building A",
                     CategoryId = safetyCategory.CategoryId,
                     Location = "Building A - All Floors",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2018, 2, 10)
                 },
                 new {
                     AssetName = "Cooling Tower #1",
                     CategoryId = hvacCategory.CategoryId,
                     Location = "Rooftop - Building B",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2020, 5, 22)
                 },
                 new {
                     AssetName = "Compressor Unit - Workshop",
                     CategoryId = mechanicalCategory.CategoryId,
                     Location = "Workshop - Ground Floor",
-                    Status = "Operational",
+                    Status = "Active",
                     PurchaseDate = new DateTime(2021, 3, 8)
                 }
             };

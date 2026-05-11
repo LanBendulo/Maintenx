@@ -1,3 +1,4 @@
+using IT15_Project.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,15 +21,18 @@ namespace IT15_Project.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ITenantService _tenantService;
         private readonly ICostService _costService;
+        private readonly AssetStatusService _assetStatusService;
 
         public TechnicianDashboardController(
             ApplicationDbContext context, 
             ITenantService tenantService,
-            ICostService costService)
+            ICostService costService,
+            AssetStatusService assetStatusService)
         {
             _context = context;
             _tenantService = tenantService;
             _costService = costService;
+            _assetStatusService = assetStatusService;
         }
 
         /// <summary>
@@ -59,14 +63,15 @@ namespace IT15_Project.Controllers
                            !w.IsArchived)
                 .Include(w => w.Asset)
                 .OrderByDescending(w => w.DateCreated)
+                .ThenByDescending(w => w.WorkOrderId)
                 .ToListAsync();
 
             // Calculate metrics (TECHNICIAN-SCOPED ONLY)
             ViewBag.TotalAssigned = assignedWorkOrders.Count;
-            ViewBag.OpenCount = assignedWorkOrders.Count(w => w.Status == "Open");
-            ViewBag.InProgressCount = assignedWorkOrders.Count(w => w.Status == "In Progress");
+            ViewBag.PendingCount = assignedWorkOrders.Count(w => w.Status == WorkOrderStatuses.Pending);
+            ViewBag.InProgressCount = assignedWorkOrders.Count(w => w.Status == WorkOrderStatuses.InProgress);
             ViewBag.CompletedTodayCount = assignedWorkOrders.Count(w => 
-                w.Status == "Completed" && 
+                w.Status == WorkOrderStatuses.Completed && 
                 w.ActualCompletion.HasValue && 
                 w.ActualCompletion.Value.Date == DateTime.Today);
 
@@ -113,15 +118,15 @@ namespace IT15_Project.Controllers
             // Filter by status
             switch (status.ToLower())
             {
-                case "open":
-                    query = query.Where(w => w.Status == "Open");
+                case "pending":
+                    query = query.Where(w => w.Status == WorkOrderStatuses.Pending);
                     break;
                 case "in-progress":
                 case "inprogress":
-                    query = query.Where(w => w.Status == "In Progress");
+                    query = query.Where(w => w.Status == WorkOrderStatuses.InProgress);
                     break;
                 case "completed":
-                    query = query.Where(w => w.Status == "Completed");
+                    query = query.Where(w => w.Status == WorkOrderStatuses.Completed);
                     break;
                 case "all":
                 default:
@@ -131,6 +136,7 @@ namespace IT15_Project.Controllers
 
             var workOrders = await query
                 .OrderByDescending(w => w.DateCreated)
+                .ThenByDescending(w => w.WorkOrderId)
                 .ToListAsync();
 
             ViewBag.StatusFilter = status;
@@ -197,7 +203,7 @@ namespace IT15_Project.Controllers
         }
 
         /// <summary>
-        /// Start work on an assigned work order (Open → In Progress)
+        /// Start work on an assigned work order (Pending → In Progress)
         /// </summary>
         [HttpPost]
         [Route("work-orders/start/{id}")]
@@ -226,11 +232,11 @@ namespace IT15_Project.Controllers
                 return NotFound(new { success = false, message = "Work order not found or not assigned to you." });
             }
 
-            if (workOrder.Status != "Open")
+            if (!WorkOrderStatuses.CanStart(workOrder.Status))
             {
                 return BadRequest(new { 
                     success = false, 
-                    message = $"Cannot start work. Current status is '{workOrder.Status}'. Only 'Open' work orders can be started." 
+                    message = $"Cannot start work. Current status is '{workOrder.Status}'. Only 'Pending' work orders can be started." 
                 });
             }
 
@@ -239,7 +245,7 @@ namespace IT15_Project.Controllers
                 return BadRequest(new { success = false, message = "Cannot start archived work orders." });
             }
 
-            workOrder.Status = "In Progress";
+            workOrder.Status = WorkOrderStatuses.InProgress;
             workOrder.DateCreated = DateTime.Now;
             
             await _context.SaveChangesAsync();
@@ -282,7 +288,7 @@ namespace IT15_Project.Controllers
                 return NotFound(new { success = false, message = "Work order not found or not assigned to you." });
             }
 
-            if (workOrder.Status != "In Progress")
+            if (!WorkOrderStatuses.CanComplete(workOrder.Status))
             {
                 return BadRequest(new { 
                     success = false, 
@@ -295,7 +301,7 @@ namespace IT15_Project.Controllers
                 return BadRequest(new { success = false, message = "Cannot complete archived work orders." });
             }
 
-            workOrder.Status = "Completed";
+            workOrder.Status = WorkOrderStatuses.Completed;
             workOrder.ActualCompletion = DateTime.Now;
             
             // LOCK COSTS (recalculate and finalize)
@@ -328,6 +334,9 @@ namespace IT15_Project.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // ASSET STATUS UPDATE: Return asset to Active if no other active work orders
+            await _assetStatusService.OnWorkOrderCompletedOrCancelledAsync(workOrder.WorkOrderId, userId);
 
             return Ok(new { 
                 success = true, 

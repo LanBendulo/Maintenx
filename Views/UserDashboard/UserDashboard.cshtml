@@ -112,19 +112,12 @@
                             <td>@mr.Title</td>
                             <td class="td-equip">@(mr.Asset?.AssetName ?? "N/A")</td>
                             <td><span class="badge-priority-@priorityClass">@mr.Priority</span></td>
-                            <td><span class="badge badge-@statusClass">@mr.Status</span></td>
+                            <td>@await Html.PartialAsync("_MaintenanceRequestStatusBadge", mr.Status)</td>
                             <td style="font-size:12.5px;color:var(--mx-muted)">@mr.CreatedAt.ToString("MMM dd, yyyy")</td>
                             <td>
                                 @if (mr.WorkOrder != null)
                                 {
-                                    var woStatusClass = mr.WorkOrder.Status?.ToLower() switch
-                                    {
-                                        "open" => "pending",
-                                        "in progress" => "inprog",
-                                        "completed" => "done",
-                                        _ => "pending"
-                                    };
-                                    <span class="badge badge-@woStatusClass">@mr.WorkOrder.Status</span>
+                                    @await Html.PartialAsync("_WorkOrderStatusBadge", mr.WorkOrder.Status)
                                 }
                                 else
                                 {

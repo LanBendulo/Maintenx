@@ -295,6 +295,37 @@
     });
 
     // ========================================
+    // CLOSE REQUEST
+    // ========================================
+    document.addEventListener('click', async function(e) {
+        if (e.target.closest('.action-close-mr')) {
+            e.preventDefault();
+            const link = e.target.closest('.action-close-mr');
+            const mrId = link.getAttribute('data-mr-id');
+            
+            if (!confirm('Are you sure you want to close this request without conversion?')) return;
+            
+            try {
+                const response = await fetch(`/admin/maintenance-requests/${mrId}/close`, {
+                    method: 'PUT'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showToast(result.message || 'Request closed successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast(result.message || 'Failed to close request', 'error');
+                }
+            } catch (error) {
+                console.error('Error closing request:', error);
+                showToast('Failed to close request', 'error');
+            }
+        }
+    });
+
+    // ========================================
     // CONVERT TO WORK ORDER
     // ========================================
     // ========================================

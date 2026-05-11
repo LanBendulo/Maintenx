@@ -32,10 +32,10 @@
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
             </div>
-            <span class="stat-trend warn">● @ViewBag.OpenCount</span>
+            <span class="stat-trend warn">● @ViewBag.PendingCount</span>
         </div>
-        <div class="stat-value" style="color:var(--mx-orange)">@ViewBag.OpenCount</div>
-        <div class="stat-label">Open Work Orders</div>
+        <div class="stat-value" style="color:var(--mx-orange)">@ViewBag.PendingCount</div>
+        <div class="stat-label">Pending Work Orders</div>
     </div>
 
     <div class="stat-card navy">
@@ -78,9 +78,10 @@
         {
             var statusClass = wo.Status?.ToLower() switch
             {
-                "open" => "pending",
+                "pending" => "pending",
                 "in progress" => "inprog",
                 "completed" => "done",
+                "cancelled" => "cancelled",
                 _ => "pending"
             };
 
@@ -103,7 +104,7 @@
                     <div class="wo-meta">
                         <span class="badge badge-@priorityClass" style="padding:2px 7px;font-size:11px;">@wo.Priority</span>
                         &nbsp;·&nbsp;
-                        <span class="badge badge-@statusClass" style="padding:2px 7px;font-size:11px;">@wo.Status</span>
+                        @await Html.PartialAsync("_WorkOrderStatusBadge", wo.Status)
                     </div>
                 </div>
                 <div class="wo-right">
@@ -148,11 +149,11 @@
             </svg>
             View All Work Orders
         </a>
-        <a href="/work-orders?status=open" class="quick-btn qb-orange">
+        <a href="/work-orders?status=pending" class="quick-btn qb-orange">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            Open Work Orders
+            Pending Work Orders
         </a>
         <a href="/work-orders?status=in-progress" class="quick-btn qb-blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
