@@ -54,6 +54,30 @@ namespace IT15_Project.Models
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
 
+        // Computed properties
+        [NotMapped]
+        public string Status
+        {
+            get
+            {
+                if (!IsActive) return "Inactive";
+                if (EndDate <= DateTime.Now) return "Expired";
+                if (IsTrial && EndDate <= DateTime.Now.AddDays(7)) return "Trial Ending";
+                if (IsTrial) return "Trial";
+                if (EndDate <= DateTime.Now.AddDays(30)) return "Expiring Soon";
+                return "Active";
+            }
+        }
+
+        [NotMapped]
+        public int DaysRemaining
+        {
+            get
+            {
+                return (EndDate - DateTime.Now).Days;
+            }
+        }
+
         // Navigation properties
         [ForeignKey("CompanyId")]
         public virtual Company? Company { get; set; }

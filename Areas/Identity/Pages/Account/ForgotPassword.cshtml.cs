@@ -13,7 +13,10 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using IT15_Project.Models;
+using IT15_Project.Services.Security;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IT15_Project.Areas.Identity.Pages.Account
 {
@@ -21,11 +24,19 @@ namespace IT15_Project.Areas.Identity.Pages.Account
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
+        private readonly ITurnstileValidationService _turnstileValidationService;
+        private readonly ILogger<ForgotPasswordModel> _logger;
 
-        public ForgotPasswordModel(UserManager<ApplicationUser> userManager, IEmailSender emailSender)
+        public ForgotPasswordModel(
+            UserManager<ApplicationUser> userManager, 
+            IEmailSender emailSender,
+            ITurnstileValidationService turnstileValidationService,
+            ILogger<ForgotPasswordModel> logger)
         {
             _userManager = userManager;
             _emailSender = emailSender;
+            _turnstileValidationService = turnstileValidationService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -48,12 +59,52 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             [Required]
             [EmailAddress]
             public string Email { get; set; }
+
+            /// <summary>
+            ///     Turnstile CAPTCHA token
+            ///     Only required when Turnstile is enabled
+            /// </summary>
+            public string TurnstileToken { get; set; }
         }
 
+        [EnableRateLimiting("forgotPassword")]
         public async Task<IActionResult> OnPostAsync()
         {
             if (ModelState.IsValid)
             {
+                // ============================================================
+                // Validate Turnstile CAPTCHA (if enabled)
+                // ============================================================
+                if (_turnstileValidationService.IsEnabled())
+                {
+                    // Validate token is provided
+                    if (string.IsNullOrWhiteSpace(Input.TurnstileToken))
+                    {
+                        _logger.LogWarning("Turnstile token missing for forgot password attempt. Email: {Email}", Input.Email);
+                        ModelState.AddModelError(string.Empty, "Please complete the CAPTCHA verification.");
+                        return Page();
+                    }
+
+                    var turnstileValid = await _turnstileValidationService.ValidateTokenAsync(
+                        Input.TurnstileToken,
+                        HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                    if (!turnstileValid)
+                    {
+                        _logger.LogWarning("Forgot password attempt failed Turnstile validation from IP: {IP}", 
+                            HttpContext.Connection.RemoteIpAddress);
+                        ModelState.AddModelError(string.Empty, "CAPTCHA validation failed. Please try again.");
+                        return Page();
+                    }
+
+                    _logger.LogInformation("Turnstile validation succeeded for forgot password");
+                }
+                else
+                {
+                    _logger.LogInformation("Turnstile is disabled - skipping CAPTCHA validation for forgot password");
+                }
+                // ============================================================
+
                 var user = await _userManager.FindByEmailAsync(Input.Email);
                 if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
                 {

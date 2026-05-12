@@ -81,12 +81,27 @@
         </select>
         <select class="filter-select" id="filter-tech">
             <option value="">All Technicians</option>
-            <option value="juan">Juan Dela Cruz</option>
-            <option value="maria">Maria Santos</option>
-            <option value="carlo">Carlo Reyes</option>
+            @{
+                var technicians = Model?
+                    .Where(wo => wo.AssignedToPersonnel != null)
+                    .Select(wo => wo.AssignedToPersonnel)
+                    .DistinctBy(p => p!.PersonnelId)
+                    .OrderBy(p => p!.FullName)
+                    .ToList();
+                
+                if (technicians != null)
+                {
+                    foreach (var tech in technicians)
+                    {
+                        var techValue = tech!.FullName.ToLower().Replace(" ", "");
+                        <option value="@techValue">@tech.FullName</option>
+                    }
+                }
+            }
         </select>
         <select class="filter-select" id="filter-source">
             <option value="">All Sources</option>
+            <option value="preventive">Preventive Maintenance</option>
             <option value="request">From Request</option>
             <option value="manual">Manual</option>
         </select>
@@ -146,10 +161,25 @@
                         
                         var techName = wo.AssignedToPersonnel?.FullName ?? "Unassigned";
                         
-                        var source = wo.MaintenanceRequestId.HasValue 
-                            ? $"Request #{wo.MaintenanceRequest?.RequestNumber}" 
-                            : "Manual";
-                        var sourceClass = wo.MaintenanceRequestId.HasValue ? "request" : "manual";
+                        // Determine source: Preventive, Request, or Manual
+                        string source;
+                        string sourceClass;
+                        
+                        if (wo.Source == "Preventive" || wo.PreventiveScheduleId.HasValue)
+                        {
+                            source = "Preventive Maintenance";
+                            sourceClass = "preventive";
+                        }
+                        else if (wo.MaintenanceRequestId.HasValue)
+                        {
+                            source = $"Request #{wo.MaintenanceRequest?.RequestNumber}";
+                            sourceClass = "request";
+                        }
+                        else
+                        {
+                            source = "Manual";
+                            sourceClass = "manual";
+                        }
                         
                         <tr data-status="@statusClass" data-priority="@priorityClass" data-tech="@techName.ToLower().Replace(" ", "")" data-source="@sourceClass">
                             <td class="td-id">#WO-@wo.WorkOrderId.ToString("D4")</td>
@@ -184,6 +214,14 @@
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                             Update Status
                                         </a>
+                                        @if (wo.Status != null && (wo.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) || 
+                                            wo.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <a href="#" class="action-archive" data-wo-id="@wo.WorkOrderId">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Archive
+                                            </a>
+                                        }
                                     </div>
                                 </div>
                             </td>
@@ -759,7 +797,92 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════
+     ARCHIVE WORK ORDER MODAL
+════════════════════════════════════ -->
+<div class="mx-modal-overlay" id="woArchiveModal" role="dialog" aria-modal="true" aria-labelledby="archive-modal-title">
+    <div class="mx-modal" style="max-width:500px;">
+
+        <!-- Header -->
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(244,121,32,.10);color:var(--mx-orange);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                </div>
+                <div>
+                    <div class="modal-title" id="archive-modal-title">Archive Work Order</div>
+                    <div class="modal-subtitle" id="archive-modal-subtitle">#WO-0000</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeArchiveModal" aria-label="Close">×</button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+            <!-- Warning Banner -->
+            <div style="background:#FFF4E5;border-left:4px solid #F47920;padding:14px 16px;margin-bottom:20px;border-radius:4px;">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F47920" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <div>
+                        <div style="font-size:13px;color:#8B5A00;font-weight:600;margin-bottom:4px;">Archive Confirmation</div>
+                        <div style="font-size:13px;color:#8B5A00;line-height:1.5;">
+                            This work order will be removed from active operations but preserved for historical records, audit trails, and reporting. All relationships and data will remain intact.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form id="archiveForm" novalidate>
+                <input type="hidden" id="archive-work-order-id" />
+
+                <!-- Archive Reason -->
+                <div class="modal-full">
+                    <label class="mx-label">Archive Reason <span class="required">*</span></label>
+                    <textarea class="mx-textarea" id="archive-reason" placeholder="Enter reason for archiving this work order (e.g., 'Project completed', 'Equipment decommissioned', 'Operational retention')…" rows="4" required></textarea>
+                    <div class="input-error" id="archive-err-reason">Please provide a reason for archiving.</div>
+                    <div class="input-hint">This reason will be recorded in the audit trail and can be viewed later.</div>
+                </div>
+
+                <!-- Info Display -->
+                <div style="background:#F0F4F8;border-radius:8px;padding:14px 16px;margin-top:16px;">
+                    <div style="display:grid;gap:8px;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:600;color:var(--mx-muted);">Equipment:</span>
+                            <span style="font-size:13px;font-weight:600;color:var(--mx-text);" id="archive-equipment">-</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:600;color:var(--mx-muted);">Status:</span>
+                            <span style="font-size:13px;font-weight:600;color:var(--mx-text);" id="archive-status">-</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:600;color:var(--mx-muted);">Technician:</span>
+                            <span style="font-size:13px;color:var(--mx-text);" id="archive-technician">-</span>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="cancelArchiveModal">Cancel</button>
+            <button class="btn-modal-submit" id="saveArchiveForm" style="background:linear-gradient(135deg,var(--mx-orange),var(--mx-orange-d,#E86510));box-shadow:0 4px 14px rgba(244,121,32,.35);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                Archive Work Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SUCCESS TOAST (Archive) -->
+<div class="mx-toast-success" id="wo-archive-toast" style="top:140px;border-left-color:var(--mx-orange);">
+    <span class="toast-icon">📦</span>
+    Work order archived successfully!
+</div>
+
 @section Scripts {
     <script src="~/js/work-order-modal.js" asp-append-version="true"></script>
     <script src="~/js/work-orders.js" asp-append-version="true"></script>
+    <script src="~/js/work-order-parts-consumption.js" asp-append-version="true"></script>
 }

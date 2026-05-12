@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace IT15_Project.Controllers
 {
-    [Authorize(Roles = "Owner,Admin,Technician")]
+    [Authorize(Roles = "Owner,Admin,Supervisor,Technician")]
     public class MaintenanceLogsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -22,7 +22,7 @@ namespace IT15_Project.Controllers
         // Owner/Admin route
         [HttpGet]
         [Route("/admin/maintenance-logs")]
-        [Authorize(Roles = "Owner,Admin")]
+        [Authorize(Roles = "Owner,Admin,Supervisor")]
         public async Task<IActionResult> AdminIndex(string search = "")
         {
             var result = await Index(search);
@@ -85,7 +85,7 @@ namespace IT15_Project.Controllers
         // Owner/Admin details route
         [HttpGet]
         [Route("/admin/maintenance-logs/{id}")]
-        [Authorize(Roles = "Owner,Admin")]
+        [Authorize(Roles = "Owner,Admin,Supervisor")]
         public async Task<IActionResult> AdminDetails(int id)
         {
             return await Details(id);

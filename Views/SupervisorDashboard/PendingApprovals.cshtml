@@ -1,0 +1,240 @@
+@model IEnumerable<IT15_Project.Models.WorkOrderPart>
+
+@{
+    ViewData["Title"] = "Pending Parts Approvals";
+    ViewData["Active"] = "PendingApprovals";
+    Layout = "~/Views/Shared/_SupervisorLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+@if (!Model.Any())
+{
+    <div class="card" style="text-align:center;padding:60px 20px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="64" height="64" style="color:var(--mx-muted);margin-bottom:16px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h3 style="font-size:18px;font-weight:700;color:var(--mx-txt);margin-bottom:8px;">No Pending Approvals</h3>
+        <p style="color:var(--mx-muted);font-size:14px;">All parts usage has been reviewed. Check back later for new requests.</p>
+    </div>
+}
+else
+{
+    <!-- SUMMARY CARD -->
+    <div class="stat-card orange" style="margin-bottom:24px;">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● @Model.Count()</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@Model.Count()</div>
+        <div class="stat-label">Pending Parts Approvals</div>
+    </div>
+
+    <!-- APPROVALS TABLE -->
+    <div class="card">
+        <div class="section-header" style="margin-bottom:8px;">
+            <h2>Parts Approval Queue</h2>
+            <span class="table-meta">Review and approve staged inventory consumption</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="mx-table">
+                <thead>
+                    <tr>
+                        <th>Work Order</th>
+                        <th>Asset</th>
+                        <th>Part</th>
+                        <th style="text-align:center;">Qty Requested</th>
+                        <th style="text-align:center;">Available Stock</th>
+                        <th>Requested By</th>
+                        <th>Requested At</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var stockStatus = item.Part!.Quantity >= item.QuantityUsed ? "sufficient" : "insufficient";
+                        var stockColor = stockStatus == "sufficient" ? "var(--mx-green)" : "var(--mx-red)";
+                        
+                        <tr data-approval-id="@item.Id">
+                            <td>
+                                <a href="/supervisor/work-order/@item.WorkOrderId" class="td-id" style="text-decoration:none;">
+                                    #WO-@item.WorkOrderId.ToString("D4")
+                                </a>
+                            </td>
+                            <td class="td-equip">@item.WorkOrder?.Asset?.AssetName</td>
+                            <td>
+                                <div style="font-weight:600;color:var(--mx-txt);font-size:13px;">@item.Part.PartName</div>
+                                <div style="font-size:11.5px;color:var(--mx-muted);">@item.Part.PartNumber</div>
+                            </td>
+                            <td style="text-align:center;">
+                                <span style="font-weight:600;color:var(--mx-txt);">@item.QuantityUsed</span>
+                            </td>
+                            <td style="text-align:center;">
+                                <span style="font-weight:600;color:@stockColor;">@item.Part.Quantity</span>
+                            </td>
+                            <td>
+                                @if (item.AddedByPersonnel != null)
+                                {
+                                    <div class="td-staff">
+                                        <div class="td-avatar">@($"{item.AddedByPersonnel.FirstName?.FirstOrDefault()}{item.AddedByPersonnel.LastName?.FirstOrDefault()}")</div>
+                                        <div>
+                                            <div style="font-size:13px;font-weight:500;">@item.AddedByPersonnel.FullName</div>
+                                            <div style="font-size:11px;color:var(--mx-muted);">@item.AddedByPersonnel.Role</div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);">N/A</span>
+                                }
+                            </td>
+                            <td style="color:var(--mx-muted);font-size:12.5px;">
+                                @item.CreatedAt.ToString("MMM dd, yyyy")
+                                <div style="font-size:11px;color:var(--mx-muted);">@item.CreatedAt.ToString("hh:mm tt")</div>
+                            </td>
+                            <td style="text-align:right;">
+                                <div style="display:flex;gap:6px;justify-content:flex-end;">
+                                    @if (stockStatus == "sufficient")
+                                    {
+                                        <button class="btn-approve" data-id="@item.Id" style="background:var(--mx-green);color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;">
+                                            Approve
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button disabled style="background:var(--mx-border);color:var(--mx-muted);border:none;padding:6px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:not-allowed;" title="Insufficient stock">
+                                            Approve
+                                        </button>
+                                    }
+                                    <button class="btn-reject" data-id="@item.Id" style="background:var(--mx-red);color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;">
+                                        Reject
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- SUCCESS TOAST -->
+<div class="mx-toast-success" id="approval-toast" style="display:none;position:fixed;top:20px;right:20px;background:var(--mx-green);color:white;padding:14px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;font-weight:600;font-size:14px;">
+    <span class="toast-icon">✅</span>
+    <span id="toast-message">Action completed successfully</span>
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        // Approve button handler
+        $('.btn-approve').on('click', function() {
+            const id = $(this).data('id');
+            const row = $(`tr[data-approval-id="${id}"]`);
+            
+            if (!confirm('Are you sure you want to approve this parts usage?')) {
+                return;
+            }
+            
+            $.ajax({
+                url: `/supervisor/approve-part/${id}`,
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        row.fadeOut(300, function() {
+                            $(this).remove();
+                            
+                            // Check if table is empty
+                            if ($('tbody tr').length === 0) {
+                                location.reload();
+                            }
+                        });
+                        
+                        showToast('Parts usage approved successfully', 'success');
+                    } else {
+                        showToast(response.message || 'Failed to approve parts usage', 'error');
+                    }
+                },
+                error: function() {
+                    showToast('Error approving parts usage', 'error');
+                }
+            });
+        });
+        
+        // Reject button handler
+        $('.btn-reject').on('click', function() {
+            const id = $(this).data('id');
+            const row = $(`tr[data-approval-id="${id}"]`);
+            
+            const reason = prompt('Please provide a reason for rejection (optional):');
+            if (reason === null) {
+                return;
+            }
+            
+            $.ajax({
+                url: `/supervisor/reject-part/${id}`,
+                type: 'POST',
+                data: { reason: reason },
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        row.fadeOut(300, function() {
+                            $(this).remove();
+                            
+                            if ($('tbody tr').length === 0) {
+                                location.reload();
+                            }
+                        });
+                        
+                        showToast('Parts usage rejected', 'success');
+                    } else {
+                        showToast(response.message || 'Failed to reject parts usage', 'error');
+                    }
+                },
+                error: function() {
+                    showToast('Error rejecting parts usage', 'error');
+                }
+            });
+        });
+        
+        function showToast(message, type) {
+            const toast = $('#approval-toast');
+            const bgColor = type === 'success' ? 'var(--mx-green)' : 'var(--mx-red)';
+            
+            toast.css('background', bgColor);
+            $('#toast-message').text(message);
+            toast.fadeIn(200);
+            
+            setTimeout(function() {
+                toast.fadeOut(300);
+            }, 3000);
+        }
+        
+        // Hover effects
+        $('.btn-approve:not(:disabled)').hover(
+            function() { $(this).css('filter', 'brightness(1.1)'); },
+            function() { $(this).css('filter', 'brightness(1)'); }
+        );
+        
+        $('.btn-reject').hover(
+            function() { $(this).css('filter', 'brightness(1.1)'); },
+            function() { $(this).css('filter', 'brightness(1)'); }
+        );
+    });
+</script>
+}
+
+<form id="antiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>

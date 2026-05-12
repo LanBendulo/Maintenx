@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using IT15_Project.Services;
+using IT15_Project.Services.Interfaces;
 using System.Security.Claims;
 
 namespace IT15_Project.Controllers
@@ -14,22 +15,25 @@ namespace IT15_Project.Controllers
     /// Manages schedules that generate work orders for planned maintenance.
     /// MULTI-TENANT: All queries filtered by CompanyId
     /// </summary>
-    [Authorize(Roles = "Owner,Admin")]
+    [Authorize(Roles = "Owner,Admin,Supervisor")]
     [Route("admin/preventive-maintenance")]
     public class PreventiveMaintenanceController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly ITenantService _tenantService;
         private readonly PreventiveMaintenanceGenerationService _generationService;
+        private readonly IPMGovernanceService _governanceService;
 
         public PreventiveMaintenanceController(
             ApplicationDbContext context, 
             ITenantService tenantService,
-            PreventiveMaintenanceGenerationService generationService)
+            PreventiveMaintenanceGenerationService generationService,
+            IPMGovernanceService governanceService)
         {
             _context = context;
             _tenantService = tenantService;
             _generationService = generationService;
+            _governanceService = governanceService;
         }
 
         /// <summary>
@@ -190,6 +194,12 @@ namespace IT15_Project.Controllers
                     return BadRequest(new { success = false, message = "Frequency must be greater than 0 days." });
                 }
 
+                // Validate next due date is not in the past
+                if (request.NextDueDate.Date < DateTime.Today)
+                {
+                    return BadRequest(new { success = false, message = "Next due date cannot be in the past." });
+                }
+
                 var schedule = new PreventiveSchedule
                 {
                     CompanyId = companyId,
@@ -249,7 +259,8 @@ namespace IT15_Project.Controllers
                     lastCompletedDate = schedule.LastCompletedDate,
                     isActive = schedule.IsActive,
                     defaultTechnicianId = schedule.DefaultTechnicianId,
-                    defaultTechnicianName = schedule.DefaultTechnician?.FullName
+                    defaultTechnicianName = schedule.DefaultTechnician?.FullName,
+                    priority = schedule.Priority
                 };
 
                 return Ok(result);
@@ -323,7 +334,14 @@ namespace IT15_Project.Controllers
                 }
 
                 if (request.NextDueDate.HasValue)
+                {
+                    // Validate next due date is not in the past
+                    if (request.NextDueDate.Value.Date < DateTime.Today)
+                    {
+                        return BadRequest(new { success = false, message = "Next due date cannot be in the past." });
+                    }
                     schedule.NextDueDate = request.NextDueDate.Value;
+                }
 
                 schedule.DefaultTechnicianId = request.DefaultTechnicianId;
                 
@@ -405,7 +423,41 @@ namespace IT15_Project.Controllers
         }
 
         /// <summary>
+        /// Check if a PM schedule can generate a work order (governance validation)
+        /// Used by UI to enable/disable generation button and show tooltips
+        /// </summary>
+        [HttpGet]
+        [Route("{id}/can-generate")]
+        public async Task<IActionResult> CanGenerate(int id)
+        {
+            try
+            {
+                var status = await _governanceService.GetGenerationStatusAsync(id);
+                
+                return Ok(new
+                {
+                    canGenerate = status.CanGenerate,
+                    isDue = status.IsDue,
+                    isOverdue = status.IsOverdue,
+                    hasActiveWorkOrder = status.HasActiveWorkOrder,
+                    statusMessage = status.StatusMessage,
+                    tooltipMessage = status.TooltipMessage,
+                    activeWorkOrderId = status.ActiveWorkOrderId,
+                    activeWorkOrderStatus = status.ActiveWorkOrderStatus,
+                    nextDueDate = status.NextDueDate,
+                    daysUntilDue = status.DaysUntilDue,
+                    daysOverdue = status.DaysOverdue
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Generate a work order from a preventive maintenance schedule
+        /// GOVERNANCE ENFORCED: Validates schedule is due and no active work order exists
         /// </summary>
         [HttpPost]
         [Route("{id}/generate")]
@@ -415,6 +467,23 @@ namespace IT15_Project.Controllers
             {
                 var companyId = _tenantService.GetCurrentCompanyId();
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // ═══════════════════════════════════════════════════════════
+                // GOVERNANCE VALIDATION (CRITICAL)
+                // ═══════════════════════════════════════════════════════════
+                var governanceResult = await _governanceService.CanGenerateWorkOrderAsync(id);
+                
+                if (!governanceResult.CanGenerate)
+                {
+                    return BadRequest(new 
+                    { 
+                        success = false, 
+                        message = governanceResult.Reason,
+                        blockReason = governanceResult.BlockReason?.ToString(),
+                        existingWorkOrderId = governanceResult.ExistingWorkOrderId
+                    });
+                }
+                // ═══════════════════════════════════════════════════════════
 
                 // Get current user's personnel record
                 var currentPersonnel = await _context.Personnel
@@ -437,12 +506,15 @@ namespace IT15_Project.Controllers
                     return NotFound(new { success = false, message = "Schedule not found." });
                 }
 
-                if (!schedule.IsActive)
+                // Create work order with PreventiveScheduleId link
+                // Calculate expected completion based on priority
+                var completionBuffer = schedule.Priority?.ToLower() switch
                 {
-                    return BadRequest(new { success = false, message = "Cannot generate work order from inactive schedule." });
-                }
-
-                // Create work order
+                    "high" => 2,      // High priority: 2 days
+                    "low" => 7,       // Low priority: 7 days
+                    _ => 5            // Medium/default: 5 days
+                };
+                
                 var workOrder = new WorkOrder
                 {
                     CompanyId = companyId,
@@ -453,15 +525,18 @@ namespace IT15_Project.Controllers
                     Priority = schedule.Priority ?? "Medium",
                     Description = $"{schedule.Title}\n\n{schedule.Description ?? "Preventive Maintenance"}",
                     DateCreated = DateTime.Now,
-                    DueDate = schedule.NextDueDate,
-                    Source = "Preventive"
+                    DueDate = DateTime.Today.AddDays(completionBuffer), // Smart completion date based on priority
+                    Source = "Preventive",
+                    PreventiveScheduleId = schedule.ScheduleId  // ← GOVERNANCE: Link to PM schedule
                 };
 
                 _context.WorkOrders.Add(workOrder);
 
-                // Update schedule
+                // Update schedule tracking
                 schedule.LastGeneratedDate = DateTime.Today;
                 schedule.LastGeneratedWorkOrderId = workOrder.WorkOrderId;
+                schedule.LastGenerationAttempt = DateTime.Now;
+                schedule.LastGenerationError = null; // Clear any previous errors
                 schedule.NextDueDate = DateTime.Today.AddDays(schedule.FrequencyDays);
                 schedule.UpdatedAt = DateTime.Now;
 

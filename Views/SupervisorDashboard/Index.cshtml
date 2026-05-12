@@ -1,0 +1,114 @@
+@{
+    ViewData["Title"] = "Supervisor Dashboard";
+    ViewData["Active"] = "Dashboard";
+    Layout = "~/Views/Shared/_SupervisorLayout.cshtml";
+}
+
+<!-- SUMMARY CARDS -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.ActiveWorkOrders</span>
+        </div>
+        <div class="stat-value">@ViewBag.ActiveWorkOrders</div>
+        <div class="stat-label">Active Work Orders</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● @ViewBag.PendingApprovals</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@ViewBag.PendingApprovals</div>
+        <div class="stat-label">Pending Approvals</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.Technicians</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@ViewBag.Technicians</div>
+        <div class="stat-label">Active Technicians</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @ViewBag.CompletedToday</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@ViewBag.CompletedToday</div>
+        <div class="stat-label">Completed Today</div>
+    </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="card" style="margin-bottom:24px;">
+    <div class="section-header">
+        <h2>Quick Actions</h2>
+    </div>
+    <div class="quick-grid">
+        <a href="/supervisor/pending-approvals" class="quick-btn qb-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Review Approvals
+        </a>
+        <a href="/supervisor/work-orders" class="quick-btn qb-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+            </svg>
+            Monitor Work Orders
+        </a>
+        <a href="/supervisor/technician-oversight" class="quick-btn qb-navy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Technician Oversight
+        </a>
+        <a href="/admin/inventory-movements" class="quick-btn qb-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            Inventory Movements
+        </a>
+    </div>
+</div>
+
+<!-- SUPERVISOR INFO -->
+<div class="card" style="border-left:4px solid var(--mx-primary);">
+    <div class="section-header" style="margin-bottom:12px;">
+        <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;">
+                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+            </svg>
+            Supervisor Role Overview
+        </h2>
+    </div>
+    <p style="color:var(--mx-muted);margin-bottom:14px;font-size:13px;line-height:1.6;">
+        As a Supervisor, you provide operational oversight between technicians and administrators. Your key responsibilities include:
+    </p>
+    <ul style="color:var(--mx-muted);margin-left:20px;line-height:1.8;font-size:13px;">
+        <li><strong style="color:var(--mx-txt);">Work Order Oversight:</strong> Monitor technician work and work order progress</li>
+        <li><strong style="color:var(--mx-txt);">Parts Approval:</strong> Review and approve staged inventory consumption</li>
+        <li><strong style="color:var(--mx-txt);">Technician Monitoring:</strong> Track workload and performance metrics</li>
+        <li><strong style="color:var(--mx-txt);">Operational Reporting:</strong> Access cost tracking and maintenance logs</li>
+    </ul>
+</div>

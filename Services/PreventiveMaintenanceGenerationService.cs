@@ -1,7 +1,9 @@
 using IT15_Project.Constants;
 using IT15_Project.Data;
 using IT15_Project.Models;
+using IT15_Project.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IT15_Project.Services
 {
@@ -9,12 +11,14 @@ namespace IT15_Project.Services
     /// Lightweight Preventive Maintenance Work Order Generation Service
     /// Automatically generates work orders from active PM schedules that are due
     /// Executes on application startup and when PM page loads
+    /// GOVERNANCE ENFORCED: Uses PMGovernanceService for duplicate prevention
     /// </summary>
     public class PreventiveMaintenanceGenerationService
     {
         private readonly ApplicationDbContext _context;
         private readonly AssetStatusService _assetStatusService;
         private readonly ILogger<PreventiveMaintenanceGenerationService> _logger;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         // In-memory throttle cache to prevent excessive execution
         private static DateTime? _lastExecutionTime;
@@ -24,11 +28,13 @@ namespace IT15_Project.Services
         public PreventiveMaintenanceGenerationService(
             ApplicationDbContext context,
             AssetStatusService assetStatusService,
-            ILogger<PreventiveMaintenanceGenerationService> logger)
+            ILogger<PreventiveMaintenanceGenerationService> logger,
+            IServiceScopeFactory serviceScopeFactory)
         {
             _context = context;
             _assetStatusService = assetStatusService;
             _logger = logger;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         /// <summary>
@@ -152,124 +158,108 @@ namespace IT15_Project.Services
         /// <summary>
         /// Attempt to generate a work order for a PM schedule
         /// Returns true if generated, false if skipped (duplicate prevention)
+        /// GOVERNANCE ENFORCED: Uses PMGovernanceService for validation
         /// </summary>
         private async Task<bool> TryGenerateWorkOrderAsync(PreventiveSchedule schedule)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Use execution strategy to handle transactions with retry logic
+            var strategy = _context.Database.CreateExecutionStrategy();
 
-            try
+            return await strategy.ExecuteAsync(async () =>
             {
-                // DUPLICATE PREVENTION: Check if already generated for this cycle
-                if (schedule.LastGeneratedDate.HasValue && 
-                    schedule.LastGeneratedDate.Value >= schedule.NextDueDate)
+                using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
                 {
-                    _logger.LogDebug(
-                        "Skipping PM schedule {ScheduleId} - already generated for current cycle (LastGen: {LastGen}, NextDue: {NextDue})",
+                    // ═══════════════════════════════════════════════════════════
+                    // GOVERNANCE VALIDATION (CRITICAL)
+                    // Create scoped governance service for validation
+                    // ═══════════════════════════════════════════════════════════
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var governanceService = scope.ServiceProvider.GetRequiredService<IPMGovernanceService>();
+                    
+                    var governanceResult = await governanceService.CanGenerateWorkOrderAsync(schedule.ScheduleId);
+                    
+                    if (!governanceResult.CanGenerate)
+                    {
+                        _logger.LogDebug(
+                            "Skipping PM schedule {ScheduleId} - governance check failed: {Reason}",
+                            schedule.ScheduleId,
+                            governanceResult.Reason
+                        );
+                        return false;
+                    }
+                    // ═══════════════════════════════════════════════════════════
+
+                    // CREATE WORK ORDER with PreventiveScheduleId link
+                    // Calculate expected completion based on priority
+                    var completionBuffer = schedule.Priority?.ToLower() switch
+                    {
+                        "high" => 2,      // High priority: 2 days
+                        "low" => 7,       // Low priority: 7 days
+                        _ => 5            // Medium/default: 5 days
+                    };
+                    
+                    var workOrder = new WorkOrder
+                    {
+                        CompanyId = schedule.CompanyId,
+                        AssetId = schedule.AssetId,
+                        AssignedTo = schedule.DefaultTechnicianId,
+                        CreatedBy = null, // System-generated (no user context)
+                        Status = WorkOrderStatuses.Pending,
+                        Priority = schedule.Priority ?? "Medium",
+                        Description = $"Preventive Maintenance: {schedule.Title}\n\n{schedule.Description ?? ""}".Trim(),
+                        DateCreated = DateTime.Now,
+                        DueDate = DateTime.Today.AddDays(completionBuffer), // Smart completion date based on priority
+                        Source = "Preventive",
+                        PreventiveScheduleId = schedule.ScheduleId  // ← GOVERNANCE: Link to PM schedule
+                    };
+
+                    _context.WorkOrders.Add(workOrder);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation(
+                        "Generated PM work order {WorkOrderId} for schedule {ScheduleId} (Asset: {AssetName})",
+                        workOrder.WorkOrderId,
                         schedule.ScheduleId,
-                        schedule.LastGeneratedDate.Value.ToShortDateString(),
+                        schedule.Asset?.AssetName
+                    );
+
+                    // UPDATE SCHEDULE: Record generation and calculate next due date
+                    schedule.LastGeneratedDate = DateTime.Today;
+                    schedule.LastGeneratedWorkOrderId = workOrder.WorkOrderId;
+                    schedule.LastGenerationAttempt = DateTime.Now;
+                    schedule.LastGenerationError = null; // Clear previous errors
+                    schedule.NextDueDate = CalculateNextDueDate(schedule.NextDueDate, schedule.FrequencyDays);
+                    schedule.UpdatedAt = DateTime.Now;
+
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation(
+                        "Updated PM schedule {ScheduleId} - next due date: {NextDueDate}",
+                        schedule.ScheduleId,
                         schedule.NextDueDate.ToShortDateString()
                     );
-                    return false;
+
+                    // ASSET STATUS UPDATE: Mark asset as Under Maintenance (if not already)
+                    if (schedule.Asset?.Status == AssetStatuses.Active)
+                    {
+                        await _assetStatusService.OnWorkOrderCreatedAsync(workOrder.WorkOrderId, null);
+                        _logger.LogDebug(
+                            "Asset {AssetId} status updated to Under Maintenance",
+                            schedule.AssetId
+                        );
+                    }
+
+                    await transaction.CommitAsync();
+                    return true;
                 }
-
-                // ASSET VALIDATION: Check if asset is retired
-                if (schedule.Asset == null)
+                catch (Exception)
                 {
-                    _logger.LogWarning(
-                        "Skipping PM schedule {ScheduleId} - asset {AssetId} not found",
-                        schedule.ScheduleId,
-                        schedule.AssetId
-                    );
-                    return false;
+                    await transaction.RollbackAsync();
+                    throw;
                 }
-
-                if (schedule.Asset.Status == AssetStatuses.Retired)
-                {
-                    _logger.LogInformation(
-                        "Skipping PM schedule {ScheduleId} - asset {AssetId} is retired",
-                        schedule.ScheduleId,
-                        schedule.AssetId
-                    );
-                    return false;
-                }
-
-                // DUPLICATE PREVENTION: Check for existing active PM work orders
-                var hasActiveWorkOrder = await _context.WorkOrders
-                    .AnyAsync(wo => wo.CompanyId == schedule.CompanyId &&
-                                   wo.AssetId == schedule.AssetId &&
-                                   wo.Source == "Preventive" &&
-                                   (wo.Status == WorkOrderStatuses.Pending || 
-                                    wo.Status == WorkOrderStatuses.InProgress));
-
-                if (hasActiveWorkOrder)
-                {
-                    _logger.LogDebug(
-                        "Skipping PM schedule {ScheduleId} - active PM work order already exists for asset {AssetId}",
-                        schedule.ScheduleId,
-                        schedule.AssetId
-                    );
-                    return false;
-                }
-
-                // CREATE WORK ORDER
-                var workOrder = new WorkOrder
-                {
-                    CompanyId = schedule.CompanyId,
-                    AssetId = schedule.AssetId,
-                    AssignedTo = schedule.DefaultTechnicianId,
-                    CreatedBy = null, // System-generated (no user context)
-                    Status = WorkOrderStatuses.Pending,
-                    Priority = schedule.Priority ?? "Medium",
-                    Description = $"Preventive Maintenance: {schedule.Title}\n\n{schedule.Description ?? ""}".Trim(),
-                    DateCreated = DateTime.Now,
-                    DueDate = schedule.NextDueDate,
-                    Source = "Preventive"
-                };
-
-                _context.WorkOrders.Add(workOrder);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation(
-                    "Generated PM work order {WorkOrderId} for schedule {ScheduleId} (Asset: {AssetName})",
-                    workOrder.WorkOrderId,
-                    schedule.ScheduleId,
-                    schedule.Asset.AssetName
-                );
-
-                // UPDATE SCHEDULE: Record generation and calculate next due date
-                schedule.LastGeneratedDate = DateTime.Today;
-                schedule.LastGeneratedWorkOrderId = workOrder.WorkOrderId;
-                schedule.LastGenerationAttempt = DateTime.Now;
-                schedule.LastGenerationError = null; // Clear previous errors
-                schedule.NextDueDate = CalculateNextDueDate(schedule.NextDueDate, schedule.FrequencyDays);
-                schedule.UpdatedAt = DateTime.Now;
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation(
-                    "Updated PM schedule {ScheduleId} - next due date: {NextDueDate}",
-                    schedule.ScheduleId,
-                    schedule.NextDueDate.ToShortDateString()
-                );
-
-                // ASSET STATUS UPDATE: Mark asset as Under Maintenance (if not already)
-                if (schedule.Asset.Status == AssetStatuses.Active)
-                {
-                    await _assetStatusService.OnWorkOrderCreatedAsync(workOrder.WorkOrderId, null);
-                    _logger.LogDebug(
-                        "Asset {AssetId} status updated to Under Maintenance",
-                        schedule.AssetId
-                    );
-                }
-
-                await transaction.CommitAsync();
-                return true;
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         /// <summary>

@@ -1,0 +1,253 @@
+@model IEnumerable<IT15_Project.Models.WorkOrderCost>
+
+@{
+    ViewData["Title"] = "Cost Tracking";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Active"] = "CostTracking";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Cost Tracking</h1>
+        <p>Monitor and analyze maintenance costs across work orders and assets</p>
+    </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="wo-stats" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">₱ @ViewBag.TotalCost.ToString("N2")</span>
+        </div>
+        <div class="stat-value" style="font-size:28px;">₱ @ViewBag.TotalCost.ToString("N0")</div>
+        <div class="stat-label">Total Cost</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <span class="stat-trend">₱ @ViewBag.TotalLaborCost.ToString("N2")</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green);font-size:24px;">₱ @ViewBag.TotalLaborCost.ToString("N0")</div>
+        <div class="stat-label">Labor Cost</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+            </div>
+            <span class="stat-trend">₱ @ViewBag.TotalPartsCost.ToString("N2")</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange);font-size:24px;">₱ @ViewBag.TotalPartsCost.ToString("N0")</div>
+        <div class="stat-label">Parts Cost</div>
+    </div>
+
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <span class="stat-trend">@ViewBag.WorkOrderCount WOs</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy);font-size:24px;">₱ @ViewBag.TotalOtherCost.ToString("N0")</div>
+        <div class="stat-label">Other Cost</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <form method="get" action="/admin/cost-tracking" class="filter-bar" style="margin-bottom:0;">
+        <input type="date" name="startDate" class="filter-select" value="@ViewBag.StartDate" style="max-width:160px;" />
+        <span style="padding:0 8px;color:var(--mx-muted);">to</span>
+        <input type="date" name="endDate" class="filter-select" value="@ViewBag.EndDate" style="max-width:160px;" />
+
+        <select class="filter-select" name="assetId" id="filter-asset">
+            <option value="">All Assets</option>
+            @if (ViewBag.Assets != null)
+            {
+                @foreach (var asset in ViewBag.Assets)
+                {
+                    var selected = ViewBag.AssetFilter == asset.AssetId ? "selected" : "";
+                    <option value="@asset.AssetId" selected="@selected">@asset.AssetName</option>
+                }
+            }
+        </select>
+
+        <button type="submit" class="btn-primary-mx" style="padding:9px 18px;font-size:13px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Filter
+        </button>
+
+        <a href="/admin/cost-tracking" class="filter-reset" style="padding:9px 14px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+            </svg>
+            Reset
+        </a>
+    </form>
+</div>
+
+<!-- TOP ASSETS BY COST -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="section-header" style="margin-bottom:16px;">
+        <h2>Top Assets by Cost</h2>
+    </div>
+    @if (ViewBag.TopAssetCosts != null && ViewBag.TopAssetCosts.Count > 0)
+    {
+        <div style="display:grid;gap:12px;">
+            @foreach (var asset in ViewBag.TopAssetCosts)
+            {
+                var percentage = ViewBag.TotalCost > 0 ? (asset.TotalCost / ViewBag.TotalCost * 100) : 0;
+                <div style="padding:12px;background:var(--mx-bg-secondary);border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div>
+                            <div style="font-weight:600;color:var(--mx-text);">@asset.AssetName</div>
+                            <div style="font-size:12px;color:var(--mx-muted);margin-top:2px;">@asset.WorkOrderCount work orders</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:18px;font-weight:700;color:var(--mx-primary);">₱ @asset.TotalCost.ToString("N2")</div>
+                            <div style="font-size:11px;color:var(--mx-muted);">@percentage.ToString("F1")% of total</div>
+                        </div>
+                    </div>
+                    <div style="height:6px;background:rgba(148,163,184,0.2);border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;background:var(--mx-primary);width:@percentage.ToString("F1")%;transition:width 0.3s;"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center;padding:40px;color:var(--mx-muted);">
+            No cost data available for the selected period.
+        </div>
+    }
+</div>
+
+<!-- COST BREAKDOWN TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>Work Order Costs</h2>
+        <span class="table-meta">Showing <strong>@(Model?.Count() ?? 0)</strong> work orders</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table">
+            <thead>
+                <tr>
+                    <th>Work Order</th>
+                    <th>Asset</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Labor</th>
+                    <th style="text-align:right;">Parts</th>
+                    <th style="text-align:right;">Other</th>
+                    <th style="text-align:right;">Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var cost in Model)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/admin/work-orders" style="color:var(--mx-primary);text-decoration:none;font-weight:500;">
+                                    #WO-@cost.WorkOrderId.ToString("D4")
+                                </a>
+                            </td>
+                            <td style="font-weight:500;">@(cost.WorkOrder?.Asset?.AssetName ?? "N/A")</td>
+                            <td style="font-size:12px;color:var(--mx-muted);">
+                                @cost.CreatedAt.ToString("MMM dd, yyyy")
+                            </td>
+                            <td style="text-align:right;color:var(--mx-muted);">
+                                @if (cost.LaborCost.HasValue && cost.LaborCost.Value > 0)
+                                {
+                                    <span>₱ @cost.LaborCost.Value.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td style="text-align:right;color:var(--mx-muted);">
+                                @if (cost.PartsCost.HasValue && cost.PartsCost.Value > 0)
+                                {
+                                    <span>₱ @cost.PartsCost.Value.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td style="text-align:right;color:var(--mx-muted);">
+                                @if (cost.OtherCost.HasValue && cost.OtherCost.Value > 0)
+                                {
+                                    <span>₱ @cost.OtherCost.Value.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td style="text-align:right;font-weight:600;color:var(--mx-primary);font-size:14px;">
+                                ₱ @(cost.TotalCost?.ToString("N2") ?? "0.00")
+                            </td>
+                            <td>
+                                @await Html.PartialAsync("_WorkOrderStatusBadge", cost.WorkOrder?.Status ?? "Unknown")
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;margin:0 auto 16px;opacity:0.3;">
+                                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                            <p>No cost data found for the selected period.</p>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+/* Cost-specific styling */
+.stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--mx-text);
+    margin: 8px 0;
+}
+
+.stat-trend {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stat-trend.up {
+    color: var(--mx-green);
+}
+</style>

@@ -19,8 +19,8 @@ namespace IT15_Project.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Define roles (RBAC structure + SuperAdmin)
-            string[] roleNames = { "SuperAdmin", "Owner", "Admin", "Technician", "User" };
+            // Define roles (RBAC structure + SuperAdmin + Supervisor)
+            string[] roleNames = { "SuperAdmin", "Owner", "Admin", "Supervisor", "Technician", "User" };
 
             // Create roles if they don't exist
             foreach (var roleName in roleNames)
@@ -168,6 +168,16 @@ namespace IT15_Project.Data
                     LastName = "Chen",
                     SkillSet = "System Administration, IT Management",
                     HourlyRate = 0m
+                },
+                new { 
+                    Email = "supervisor@test.com", 
+                    Password = "Supervisor@123", 
+                    Role = "Supervisor",
+                    FullName = "Lisa Anderson",
+                    FirstName = "Lisa",
+                    LastName = "Anderson",
+                    SkillSet = "Operations Management, Quality Control",
+                    HourlyRate = 38.00m
                 },
                 new { 
                     Email = "technician@test.com", 

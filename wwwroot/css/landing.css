@@ -89,10 +89,29 @@ body.landing-page {
     gap: 1rem;
 }
 
-.nav-actions .btn-link {
-    color: var(--text-dark);
+.nav-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    border-radius: 8px;
     text-decoration: none;
-    font-weight: 500;
+}
+
+.nav-actions .btn i {
+    font-size: 1rem;
+}
+
+.nav-actions .btn-outline-primary {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.nav-actions .btn-outline-primary:hover {
+    background: var(--primary-color);
+    color: white;
 }
 
 .mobile-toggle {
@@ -195,6 +214,28 @@ body.landing-page {
     padding: 0.875rem 2rem;
     font-weight: 600;
     border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hero-cta .btn i {
+    font-size: 1.125rem;
+}
+
+.hero-note {
+    margin-top: 1rem;
+    color: var(--text-light);
+}
+
+.hero-note small {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hero-note .text-success {
+    color: var(--success-color) !important;
 }
 
 .hero-image {

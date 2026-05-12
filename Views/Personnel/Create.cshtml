@@ -7,214 +7,272 @@
 
 <link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
 
-<!-- ══════════════════════════════════════
+<!-- ══════════════════════════════════════════════════════════════
      PAGE HEADER
-════════════════════════════════════════ -->
+════════════════════════════════════════════════════════════════ -->
 <div class="page-header">
     <div class="page-header-left">
-        <button class="btn-back" onclick="window.location.href='/admin/personnel'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            Back
-        </button>
-        <div>
-            <h1>Add Personnel</h1>
-            <p>Create a new personnel record</p>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <button class="btn-back-modern" onclick="window.location.href='/admin/personnel'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                </svg>
+                Back
+            </button>
+            <div>
+                <h1>Add Personnel</h1>
+                <p>Create a new personnel record for your team</p>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     FORM
-════════════════════════════════════════ -->
-<form asp-action="Create" method="post" class="card" style="max-width:900px;">
-    <div asp-validation-summary="ModelOnly" class="text-danger" style="padding:20px;background:rgba(239,68,68,.1);border-radius:8px;margin-bottom:20px;"></div>
+<!-- ══════════════════════════════════════════════════════════════
+     FORM CONTAINER
+════════════════════════════════════════════════════════════════ -->
+<form asp-action="Create" method="post" class="personnel-form-container">
+    
+    <!-- Validation Summary -->
+    <div asp-validation-summary="ModelOnly" class="validation-summary-card"></div>
 
-    <!-- BASIC INFORMATION -->
-    <div class="section-header">
-        <h2>Basic Information</h2>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
-        <div class="modal-full">
-            <label asp-for="EmployeeId" class="mx-label">Employee ID <span class="required">*</span></label>
-            <input asp-for="EmployeeId" class="mx-input" placeholder="e.g., EMP-001" />
-            <span asp-validation-for="EmployeeId" class="text-danger"></span>
+    <!-- ═══════════════════════════════════════════════════════════
+         BASIC INFORMATION CARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card form-section-card">
+        <div class="section-header">
+            <div class="section-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <h2>Basic Information</h2>
         </div>
 
-        <div></div>
+        <div class="form-grid">
+            <div class="form-field form-field-full">
+                <label asp-for="EmployeeId" class="mx-label">Employee ID <span class="required">*</span></label>
+                <input asp-for="EmployeeId" class="mx-input" placeholder="e.g., EMP-001" />
+                <span asp-validation-for="EmployeeId" class="field-error"></span>
+            </div>
 
-        <div class="modal-full">
-            <label asp-for="FirstName" class="mx-label">First Name <span class="required">*</span></label>
-            <input asp-for="FirstName" class="mx-input" placeholder="Enter first name" />
-            <span asp-validation-for="FirstName" class="text-danger"></span>
-        </div>
+            <div class="form-field">
+                <label asp-for="FirstName" class="mx-label">First Name <span class="required">*</span></label>
+                <input asp-for="FirstName" class="mx-input" placeholder="Enter first name" />
+                <span asp-validation-for="FirstName" class="field-error"></span>
+            </div>
 
-        <div class="modal-full">
-            <label asp-for="MiddleName" class="mx-label">Middle Name</label>
-            <input asp-for="MiddleName" class="mx-input" placeholder="Enter middle name (optional)" />
-            <span asp-validation-for="MiddleName" class="text-danger"></span>
-        </div>
+            <div class="form-field">
+                <label asp-for="MiddleName" class="mx-label">Middle Name</label>
+                <input asp-for="MiddleName" class="mx-input" placeholder="Enter middle name (optional)" />
+                <span asp-validation-for="MiddleName" class="field-error"></span>
+            </div>
 
-        <div class="modal-full">
-            <label asp-for="LastName" class="mx-label">Last Name <span class="required">*</span></label>
-            <input asp-for="LastName" class="mx-input" placeholder="Enter last name" />
-            <span asp-validation-for="LastName" class="text-danger"></span>
-        </div>
+            <div class="form-field">
+                <label asp-for="LastName" class="mx-label">Last Name <span class="required">*</span></label>
+                <input asp-for="LastName" class="mx-input" placeholder="Enter last name" />
+                <span asp-validation-for="LastName" class="field-error"></span>
+            </div>
 
-        <div></div>
+            <div class="form-field">
+                <label asp-for="Email" class="mx-label">Email</label>
+                <input asp-for="Email" type="email" class="mx-input" placeholder="email@example.com" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
 
-        <div class="modal-full">
-            <label asp-for="Email" class="mx-label">Email</label>
-            <input asp-for="Email" type="email" class="mx-input" placeholder="email@example.com" />
-            <span asp-validation-for="Email" class="text-danger"></span>
-        </div>
+            <div class="form-field">
+                <label asp-for="PhoneNumber" class="mx-label">Phone Number</label>
+                <input asp-for="PhoneNumber" type="tel" class="mx-input" placeholder="(555) 123-4567" />
+                <span asp-validation-for="PhoneNumber" class="field-error"></span>
+            </div>
 
-        <div class="modal-full">
-            <label asp-for="PhoneNumber" class="mx-label">Phone Number</label>
-            <input asp-for="PhoneNumber" type="tel" class="mx-input" placeholder="(555) 123-4567" />
-            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full" style="grid-column:1/-1;">
-            <label asp-for="Address" class="mx-label">Address</label>
-            <textarea asp-for="Address" class="mx-input" rows="2" placeholder="Enter full address"></textarea>
-            <span asp-validation-for="Address" class="text-danger"></span>
-        </div>
-    </div>
-
-    <!-- EMPLOYMENT INFORMATION -->
-    <div class="section-header" style="border-top:1px solid var(--mx-border);padding-top:20px;">
-        <h2>Employment Information</h2>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
-        <div class="modal-full">
-            <label asp-for="Position" class="mx-label">Position/Title</label>
-            <input asp-for="Position" class="mx-input" placeholder="e.g., Senior Technician" />
-            <span asp-validation-for="Position" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="Department" class="mx-label">Department</label>
-            <input asp-for="Department" class="mx-input" list="departmentList" placeholder="Select or enter department" />
-            <datalist id="departmentList">
-                @foreach (var dept in Model.AvailableDepartments)
-                {
-                    <option value="@dept"></option>
-                }
-            </datalist>
-            <span asp-validation-for="Department" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="EmploymentType" class="mx-label">Employment Type</label>
-            <select asp-for="EmploymentType" class="mx-select">
-                <option value="">Select employment type</option>
-                @foreach (var type in Model.AvailableEmploymentTypes)
-                {
-                    <option value="@type">@type</option>
-                }
-            </select>
-            <span asp-validation-for="EmploymentType" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="Status" class="mx-label">Status <span class="required">*</span></label>
-            <select asp-for="Status" class="mx-select">
-                @foreach (var status in Model.AvailableStatuses)
-                {
-                    <option value="@status">@status</option>
-                }
-            </select>
-            <span asp-validation-for="Status" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="HireDate" class="mx-label">Hire Date</label>
-            <input asp-for="HireDate" type="date" class="mx-input" />
-            <span asp-validation-for="HireDate" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="Role" class="mx-label">Job Role</label>
-            <input asp-for="Role" class="mx-input" placeholder="e.g., Technician, Supervisor" />
-            <span asp-validation-for="Role" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="SkillSet" class="mx-label">Skills (comma-separated)</label>
-            <input asp-for="SkillSet" class="mx-input" placeholder="e.g., HVAC, Electrical, Plumbing" />
-            <span asp-validation-for="SkillSet" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="HourlyRate" class="mx-label">Hourly Rate ($)</label>
-            <input asp-for="HourlyRate" type="number" step="0.01" class="mx-input" placeholder="0.00" />
-            <span asp-validation-for="HourlyRate" class="text-danger"></span>
-        </div>
-    </div>
-
-    <!-- EMERGENCY CONTACT -->
-    <div class="section-header" style="border-top:1px solid var(--mx-border);padding-top:20px;">
-        <h2>Emergency Contact</h2>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:20px;">
-        <div class="modal-full">
-            <label asp-for="EmergencyContactName" class="mx-label">Contact Name</label>
-            <input asp-for="EmergencyContactName" class="mx-input" placeholder="Enter emergency contact name" />
-            <span asp-validation-for="EmergencyContactName" class="text-danger"></span>
-        </div>
-
-        <div class="modal-full">
-            <label asp-for="EmergencyContactPhone" class="mx-label">Contact Phone</label>
-            <input asp-for="EmergencyContactPhone" type="tel" class="mx-input" placeholder="(555) 123-4567" />
-            <span asp-validation-for="EmergencyContactPhone" class="text-danger"></span>
-        </div>
-    </div>
-
-    <!-- USER ACCOUNT LINK -->
-    <div class="section-header" style="border-top:1px solid var(--mx-border);padding-top:20px;">
-        <h2>User Account Link (Optional)</h2>
-    </div>
-
-    <div style="padding:20px;">
-        <div class="modal-full">
-            <label asp-for="UserId" class="mx-label">Link to User Account</label>
-            <select asp-for="UserId" class="mx-select">
-                <option value="">No user account</option>
-                @foreach (var user in Model.AvailableUserAccounts)
-                {
-                    <option value="@user.UserId">@user.FullName (@user.Email)</option>
-                }
-            </select>
-            <span asp-validation-for="UserId" class="text-danger"></span>
-            <div style="color:var(--mx-muted);font-size:12px;margin-top:6px;">
-                Link this personnel record to an existing user account for system access
+            <div class="form-field form-field-full">
+                <label asp-for="Address" class="mx-label">Address</label>
+                <textarea asp-for="Address" class="mx-textarea" rows="2" placeholder="Enter full address"></textarea>
+                <span asp-validation-for="Address" class="field-error"></span>
             </div>
         </div>
     </div>
 
-    <!-- NOTES -->
-    <div class="section-header" style="border-top:1px solid var(--mx-border);padding-top:20px;">
-        <h2>Additional Notes</h2>
-    </div>
+    <!-- ═══════════════════════════════════════════════════════════
+         EMPLOYMENT INFORMATION CARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card form-section-card">
+        <div class="section-header">
+            <div class="section-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+            </div>
+            <h2>Employment Information</h2>
+        </div>
 
-    <div style="padding:20px;">
-        <div class="modal-full">
-            <label asp-for="Notes" class="mx-label">Notes</label>
-            <textarea asp-for="Notes" class="mx-input" rows="4" placeholder="Enter any additional notes or comments"></textarea>
-            <span asp-validation-for="Notes" class="text-danger"></span>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="Position" class="mx-label">Position/Title</label>
+                <input asp-for="Position" class="mx-input" placeholder="e.g., Senior Technician" />
+                <span asp-validation-for="Position" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Department" class="mx-label">Department</label>
+                <input asp-for="Department" class="mx-input" list="departmentList" placeholder="Select or enter department" />
+                <datalist id="departmentList">
+                    @foreach (var dept in Model.AvailableDepartments)
+                    {
+                        <option value="@dept"></option>
+                    }
+                </datalist>
+                <span asp-validation-for="Department" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="EmploymentType" class="mx-label">Employment Type</label>
+                <select asp-for="EmploymentType" class="mx-select">
+                    <option value="">Select employment type</option>
+                    @foreach (var type in Model.AvailableEmploymentTypes)
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </select>
+                <span asp-validation-for="EmploymentType" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Status" class="mx-label">Status <span class="required">*</span></label>
+                <select asp-for="Status" class="mx-select">
+                    @foreach (var status in Model.AvailableStatuses)
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+                <span asp-validation-for="Status" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="HireDate" class="mx-label">Hire Date</label>
+                <input asp-for="HireDate" type="date" class="mx-input" />
+                <span asp-validation-for="HireDate" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Role" class="mx-label">Job Role</label>
+                <input asp-for="Role" class="mx-input" placeholder="e.g., Technician, Supervisor" />
+                <span asp-validation-for="Role" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="SkillSet" class="mx-label">Skills</label>
+                <input asp-for="SkillSet" class="mx-input" placeholder="e.g., HVAC, Electrical, Plumbing" />
+                <span asp-validation-for="SkillSet" class="field-error"></span>
+                <div class="input-hint">Comma-separated list of skills</div>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="HourlyRate" class="mx-label">Hourly Rate ($)</label>
+                <input asp-for="HourlyRate" type="number" step="0.01" class="mx-input" placeholder="0.00" />
+                <span asp-validation-for="HourlyRate" class="field-error"></span>
+            </div>
         </div>
     </div>
 
-    <!-- FORM ACTIONS -->
-    <div class="modal-footer" style="border-top:1px solid var(--mx-border);">
-        <button type="button" class="btn-modal-cancel" onclick="window.location.href='/admin/personnel'">Cancel</button>
-        <button type="submit" class="btn-modal-submit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            Create Personnel
-        </button>
+    <!-- ═══════════════════════════════════════════════════════════
+         EMERGENCY CONTACT CARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card form-section-card">
+        <div class="section-header">
+            <div class="section-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+            </div>
+            <h2>Emergency Contact</h2>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="EmergencyContactName" class="mx-label">Contact Name</label>
+                <input asp-for="EmergencyContactName" class="mx-input" placeholder="Enter emergency contact name" />
+                <span asp-validation-for="EmergencyContactName" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="EmergencyContactPhone" class="mx-label">Contact Phone</label>
+                <input asp-for="EmergencyContactPhone" type="tel" class="mx-input" placeholder="(555) 123-4567" />
+                <span asp-validation-for="EmergencyContactPhone" class="field-error"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         USER ACCOUNT LINK CARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card form-section-card">
+        <div class="section-header">
+            <div class="section-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>
+                </svg>
+            </div>
+            <h2>User Account Link</h2>
+            <span class="section-badge">Optional</span>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-field form-field-full">
+                <label asp-for="UserId" class="mx-label">Link to User Account</label>
+                <select asp-for="UserId" class="mx-select">
+                    <option value="">No user account</option>
+                    @foreach (var user in Model.AvailableUserAccounts)
+                    {
+                        <option value="@user.UserId">@user.FullName (@user.Email)</option>
+                    }
+                </select>
+                <span asp-validation-for="UserId" class="field-error"></span>
+                <div class="input-hint">Link this personnel record to an existing user account for system access</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ADDITIONAL NOTES CARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card form-section-card">
+        <div class="section-header">
+            <div class="section-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+            </div>
+            <h2>Additional Notes</h2>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-field form-field-full">
+                <label asp-for="Notes" class="mx-label">Notes</label>
+                <textarea asp-for="Notes" class="mx-textarea" rows="4" placeholder="Enter any additional notes or comments"></textarea>
+                <span asp-validation-for="Notes" class="field-error"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         FORM ACTIONS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="form-actions-sticky">
+        <div class="form-actions-container">
+            <button type="button" class="btn-secondary-modern" onclick="window.location.href='/admin/personnel'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancel
+            </button>
+            <button type="submit" class="btn-primary-modern">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Create Personnel
+            </button>
+        </div>
     </div>
 </form>
 

@@ -1,4 +1,6 @@
-﻿@{
+﻿@model IT15_Project.Models.ViewModels.PublicPricingViewModel
+
+@{
     ViewData["Title"] = "MaintenX - Maintenance Management System";
     Layout = "~/Views/Shared/_LandingLayout.cshtml";
 }
@@ -18,52 +20,60 @@
                 </div>
                 
                 <h1 class="hero-title">
-                    Streamline maintenance tracking,
-                    <span class="text-gradient">automate work orders</span>, and simplify facility management for your enterprise.
+                    Enterprise maintenance management with
+                    <span class="text-gradient">automated workflows</span> and complete operational visibility.
                 </h1>
                 
                 <p class="hero-subtitle">
-                    Designed for Facility Managers & Maintenance Teams • Real-time Tracking • Preventive Maintenance • Asset Management Ready
+                    Built for Facility Managers & Maintenance Teams • Work Order Automation • Parts Inventory Tracking • Cost Management • Multi-Tenant Architecture
                 </p>
                 
                 <div class="hero-cta">
-                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg">Get Started Free</a>
-                    <a asp-area="" asp-controller="Home" asp-action="About" class="btn btn-outline-secondary btn-lg">Learn More</a>
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg">
+                        <i class="bi bi-person-plus"></i> Sign Up Free
+                    </a>
+                    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                    </a>
+                </div>
+                
+                <div class="hero-note">
+                    <small><i class="bi bi-check-circle-fill text-success"></i> No credit card required • 14-day free trial</small>
                 </div>
             </div>
             
             <div class="col-lg-6">
                 <div class="hero-image">
                     <div class="floating-card card-1">
-                        <i class="bi bi-tools"></i>
+                        <i class="bi bi-clipboard-check"></i>
                         <span>Work Orders</span>
                     </div>
                     <div class="floating-card card-2">
-                        <i class="bi bi-calendar-check"></i>
-                        <span>Scheduled Maintenance</span>
+                        <i class="bi bi-calendar-event"></i>
+                        <span>Preventive Maintenance</span>
                     </div>
                     <div class="floating-card card-3">
-                        <i class="bi bi-graph-up"></i>
-                        <span>Analytics</span>
+                        <i class="bi bi-currency-dollar"></i>
+                        <span>Cost Tracking</span>
                     </div>
                 </div>
             </div>
         </div>
         
         <div class="trust-banner">
-            <p>Trusted by enterprises nationwide</p>
+            <p>Trusted by enterprises for operational excellence</p>
             <div class="trust-stats">
                 <div class="stat-item">
-                    <strong>500+</strong>
-                    <span>Active Users</span>
+                    <strong>Multi-Tenant</strong>
+                    <span>Secure Isolation</span>
                 </div>
                 <div class="stat-item">
-                    <strong>10K+</strong>
-                    <span>Work Orders</span>
+                    <strong>Real-Time</strong>
+                    <span>Inventory Tracking</span>
                 </div>
                 <div class="stat-item">
-                    <strong>99.9%</strong>
-                    <span>Uptime</span>
+                    <strong>Automated</strong>
+                    <span>PM Generation</span>
                 </div>
             </div>
         </div>
@@ -82,14 +92,14 @@
             <div class="col-md-6 col-lg-4">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="bi bi-qr-code-scan"></i>
+                        <i class="bi bi-clipboard-check"></i>
                     </div>
-                    <h3>QR Code Asset Tracking</h3>
-                    <p>Track assets and equipment using unique QR codes. Real-time location tracking with detailed maintenance history.</p>
+                    <h3>Work Order Management</h3>
+                    <p>Create, assign, and track work orders from start to completion. Automated lifecycle management with status tracking.</p>
                     <ul class="feature-list">
-                        <li><i class="bi bi-check2"></i> Real-time asset tracking</li>
-                        <li><i class="bi bi-check2"></i> Equipment QR codes</li>
-                        <li><i class="bi bi-check2"></i> Maintenance history</li>
+                        <li><i class="bi bi-check2"></i> Digital work orders</li>
+                        <li><i class="bi bi-check2"></i> Priority management</li>
+                        <li><i class="bi bi-check2"></i> Real-time status tracking</li>
                     </ul>
                 </div>
             </div>
@@ -100,11 +110,11 @@
                         <i class="bi bi-calendar-event"></i>
                     </div>
                     <h3>Preventive Maintenance</h3>
-                    <p>Schedule and automate preventive maintenance tasks. Get notifications before equipment failures occur.</p>
+                    <p>Schedule and automate preventive maintenance tasks. Frequency-based scheduling with automatic work order generation.</p>
                     <ul class="feature-list">
                         <li><i class="bi bi-check2"></i> Automated scheduling</li>
-                        <li><i class="bi bi-check2"></i> Smart notifications</li>
-                        <li><i class="bi bi-check2"></i> Compliance tracking</li>
+                        <li><i class="bi bi-check2"></i> Frequency-based triggers</li>
+                        <li><i class="bi bi-check2"></i> PM governance tracking</li>
                     </ul>
                 </div>
             </div>
@@ -112,14 +122,14 @@
             <div class="col-md-6 col-lg-4">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="bi bi-clipboard-check"></i>
+                        <i class="bi bi-box-seam"></i>
                     </div>
-                    <h3>Work Order Management</h3>
-                    <p>Create, assign, and track work orders from start to completion. Mobile-friendly interface for field technicians.</p>
+                    <h3>Parts Inventory Management</h3>
+                    <p>Track spare parts inventory with consumption tracking. Staged parts workflow with automatic inventory deduction.</p>
                     <ul class="feature-list">
-                        <li><i class="bi bi-check2"></i> Digital work orders</li>
-                        <li><i class="bi bi-check2"></i> Priority management</li>
-                        <li><i class="bi bi-check2"></i> Status tracking</li>
+                        <li><i class="bi bi-check2"></i> Real-time stock tracking</li>
+                        <li><i class="bi bi-check2"></i> Reorder level alerts</li>
+                        <li><i class="bi bi-check2"></i> Consumption history</li>
                     </ul>
                 </div>
             </div>
@@ -127,14 +137,44 @@
             <div class="col-md-6 col-lg-4">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="bi bi-file-earmark-text"></i>
+                        <i class="bi bi-graph-up"></i>
                     </div>
-                    <h3>Detailed Reports</h3>
-                    <p>Generate comprehensive maintenance reports and analytics. Track costs, downtime, and team performance.</p>
+                    <h3>Inventory Movement Tracking</h3>
+                    <p>Complete audit trail of all inventory mutations. Immutable movement logs with before/after quantity tracking.</p>
                     <ul class="feature-list">
-                        <li><i class="bi bi-check2"></i> Custom reports</li>
-                        <li><i class="bi bi-check2"></i> Cost analysis</li>
-                        <li><i class="bi bi-check2"></i> Performance metrics</li>
+                        <li><i class="bi bi-check2"></i> Immutable audit logs</li>
+                        <li><i class="bi bi-check2"></i> Movement type tracking</li>
+                        <li><i class="bi bi-check2"></i> User traceability</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <h3>Cost Tracking</h3>
+                    <p>Monitor maintenance costs across work orders and assets. Labor, parts, and other cost breakdown with reporting.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Cost breakdown analysis</li>
+                        <li><i class="bi bi-check2"></i> Asset cost tracking</li>
+                        <li><i class="bi bi-check2"></i> Budget monitoring</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <h3>Maintenance Requests</h3>
+                    <p>Allow users to submit maintenance requests. Automated workflow from request to work order creation.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> User-submitted requests</li>
+                        <li><i class="bi bi-check2"></i> Request lifecycle tracking</li>
+                        <li><i class="bi bi-check2"></i> Auto work order creation</li>
                     </ul>
                 </div>
             </div>
@@ -144,10 +184,10 @@
                     <div class="feature-icon">
                         <i class="bi bi-people"></i>
                     </div>
-                    <h3>Team Management</h3>
-                    <p>Manage technicians, assign tasks, and track team performance. Role-based access control for security.</p>
+                    <h3>Personnel Management</h3>
+                    <p>Manage technicians and maintenance staff. Role-based access control with Owner, Admin, Technician, and User roles.</p>
                     <ul class="feature-list">
-                        <li><i class="bi bi-check2"></i> User roles & permissions</li>
+                        <li><i class="bi bi-check2"></i> Role-based permissions</li>
                         <li><i class="bi bi-check2"></i> Task assignment</li>
                         <li><i class="bi bi-check2"></i> Performance tracking</li>
                     </ul>
@@ -157,14 +197,29 @@
             <div class="col-md-6 col-lg-4">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="bi bi-phone"></i>
+                        <i class="bi bi-file-earmark-text"></i>
                     </div>
-                    <h3>Mobile Access</h3>
-                    <p>Access MaintenX from any device. Responsive design works seamlessly on desktop, tablet, and mobile.</p>
+                    <h3>Maintenance Logs</h3>
+                    <p>Automatic maintenance history logging. Complete records of all completed work with cost snapshots.</p>
                     <ul class="feature-list">
-                        <li><i class="bi bi-check2"></i> Responsive design</li>
-                        <li><i class="bi bi-check2"></i> Offline capability</li>
-                        <li><i class="bi bi-check2"></i> Real-time sync</li>
+                        <li><i class="bi bi-check2"></i> Auto-generated logs</li>
+                        <li><i class="bi bi-check2"></i> Historical records</li>
+                        <li><i class="bi bi-check2"></i> Cost snapshots</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <h3>Multi-Tenant Architecture</h3>
+                    <p>Secure multi-company support with complete data isolation. Each company has its own secure workspace.</p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check2"></i> Company isolation</li>
+                        <li><i class="bi bi-check2"></i> Subscription management</li>
+                        <li><i class="bi bi-check2"></i> Enterprise-grade security</li>
                     </ul>
                 </div>
             </div>
@@ -184,24 +239,24 @@
             <div class="col-lg-6">
                 <h3>Our Mission</h3>
                 <p class="lead">
-                    MaintenX was created to address the unique challenges of maintenance management in modern enterprises. We understand the complexities of asset tracking, preventive maintenance scheduling, and compliance requirements.
+                    MaintenX is an enterprise-grade CMMS (Computerized Maintenance Management System) designed to streamline maintenance operations for modern facilities and organizations.
                 </p>
                 <p>
-                    Our team of developers and maintenance experts have built a system that simplifies operations while saving time for facility managers and maintenance teams across industries.
+                    Built with a focus on operational efficiency, MaintenX provides complete visibility into work orders, preventive maintenance schedules, parts inventory consumption, and maintenance costs—all within a secure multi-tenant architecture.
                 </p>
                 
                 <div class="stats-grid">
                     <div class="stat-box">
-                        <h4>500+</h4>
-                        <p>Active Enterprises</p>
+                        <h4>Enterprise</h4>
+                        <p>Grade Security</p>
                     </div>
                     <div class="stat-box">
-                        <h4>99.9%</h4>
-                        <p>System Uptime</p>
+                        <h4>Complete</h4>
+                        <p>Audit Trails</p>
                     </div>
                     <div class="stat-box">
-                        <h4>24/7</h4>
-                        <p>Support Available</p>
+                        <h4>Real-Time</h4>
+                        <p>Operations</p>
                     </div>
                 </div>
             </div>
@@ -212,22 +267,22 @@
                     <div class="benefit-item">
                         <i class="bi bi-lightning-charge-fill"></i>
                         <div>
-                            <h4>Easy to Use</h4>
-                            <p>Intuitive interface designed for quick adoption by your entire team.</p>
+                            <h4>Complete Workflow Automation</h4>
+                            <p>Automated PM generation, work order lifecycle management, and inventory consumption tracking.</p>
                         </div>
                     </div>
                     <div class="benefit-item">
                         <i class="bi bi-shield-check"></i>
                         <div>
-                            <h4>Secure & Reliable</h4>
-                            <p>Enterprise-grade security with automatic backups and 99.9% uptime.</p>
+                            <h4>Enterprise-Grade Architecture</h4>
+                            <p>Multi-tenant isolation, immutable audit logs, and transactional inventory safety.</p>
                         </div>
                     </div>
                     <div class="benefit-item">
-                        <i class="bi bi-headset"></i>
+                        <i class="bi bi-graph-up-arrow"></i>
                         <div>
-                            <h4>Dedicated Support</h4>
-                            <p>Expert support team available to help you succeed.</p>
+                            <h4>Operational Visibility</h4>
+                            <p>Real-time cost tracking, inventory movement logs, and maintenance history reporting.</p>
                         </div>
                     </div>
                 </div>
@@ -240,75 +295,155 @@
 <section class="pricing-section" id="pricing">
     <div class="container">
         <div class="section-header text-center">
-            <h2>Simple Pricing for Businesses</h2>
-            <p>Choose the plan that fits your organization's needs</p>
+            <h2>Flexible Pricing for Every Organization</h2>
+            <p>Choose the plan that matches your operational scale</p>
         </div>
         
-        <div class="row g-4 justify-content-center">
-            <div class="col-lg-4">
-                <div class="pricing-card">
-                    <div class="pricing-badge">Free Trial</div>
-                    <h3>Starter</h3>
-                    <p>Explore MaintenX risk-free before committing</p>
-                    <div class="price">
-                        <span class="amount">14</span>
-                        <span class="period">days free</span>
+        @if (Model.Plans != null && Model.Plans.Any())
+        {
+            <div class="row g-4 justify-content-center">
+                @foreach (var plan in Model.Plans)
+                {
+                    var isFeatured = plan.Name.Contains("Professional", StringComparison.OrdinalIgnoreCase);
+                    var isStarter = plan.Name.Contains("Starter", StringComparison.OrdinalIgnoreCase) && plan.IsFree;
+                    var isEnterprise = plan.Name.Contains("Enterprise", StringComparison.OrdinalIgnoreCase);
+                    
+                    <div class="col-lg-4">
+                        <div class="pricing-card @(isFeatured ? "featured" : "")">
+                            @if (isStarter)
+                            {
+                                <div class="pricing-badge">Free Trial</div>
+                            }
+                            else if (isFeatured)
+                            {
+                                <div class="pricing-badge popular">Most Popular</div>
+                            }
+                            
+                            <h3>@plan.Name</h3>
+                            <p>@(plan.Description ?? "Perfect for your maintenance needs")</p>
+                            
+                            @if (isStarter && plan.IsFree)
+                            {
+                                <div class="price">
+                                    <span class="amount">14</span>
+                                    <span class="period">days free</span>
+                                </div>
+                                <p class="price-note">No credit card required</p>
+                            }
+                            else if (isEnterprise && plan.MonthlyPrice == 0)
+                            {
+                                <div class="price">
+                                    <span class="amount">Custom</span>
+                                </div>
+                                <p class="price-note">Tailored to your needs</p>
+                            }
+                            else
+                            {
+                                <div class="price">
+                                    <span class="currency">$</span>
+                                    <span class="amount">@plan.MonthlyPrice.ToString("N0")</span>
+                                    <span class="period">/month</span>
+                                </div>
+                                @if (plan.YearlyPrice > 0)
+                                {
+                                    <p class="price-note">Billed annually at $@plan.YearlyPrice.ToString("N0")</p>
+                                }
+                            }
+                            
+                            <ul class="pricing-features">
+                                @if (plan.MaxAssets.HasValue)
+                                {
+                                    <li><i class="bi bi-check-circle-fill"></i> Up to @plan.MaxAssets Assets</li>
+                                }
+                                else
+                                {
+                                    <li><i class="bi bi-check-circle-fill"></i> Unlimited Assets</li>
+                                }
+                                
+                                @if (plan.MaxUsers.HasValue)
+                                {
+                                    <li><i class="bi bi-check-circle-fill"></i> @(plan.MaxUsers == 1 ? "1 User" : $"Up to {plan.MaxUsers} Users")</li>
+                                }
+                                else
+                                {
+                                    <li><i class="bi bi-check-circle-fill"></i> Unlimited Users</li>
+                                }
+                                
+                                @* Display custom features if available *@
+                                @if (plan.Features != null && plan.Features.Any())
+                                {
+                                    @foreach (var feature in plan.Features)
+                                    {
+                                        <li><i class="bi bi-check-circle-fill"></i> @feature</li>
+                                    }
+                                }
+                                else
+                                {
+                                    @* Default features based on plan type *@
+                                    @if (isStarter)
+                                    {
+                                        <li><i class="bi bi-check-circle-fill"></i> Work Order Management</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Basic Parts Inventory</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Email Support</li>
+                                    }
+                                    else if (isFeatured)
+                                    {
+                                        <li><i class="bi bi-check-circle-fill"></i> Preventive Maintenance</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Parts Inventory Management</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Cost Tracking & Reports</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Priority Support</li>
+                                    }
+                                    else if (isEnterprise)
+                                    {
+                                        <li><i class="bi bi-check-circle-fill"></i> All Features Included</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Custom Workflows</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> API Access</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Dedicated Account Manager</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> 24/7 Priority Support</li>
+                                    }
+                                    else
+                                    {
+                                        <li><i class="bi bi-check-circle-fill"></i> All Core Features</li>
+                                        <li><i class="bi bi-check-circle-fill"></i> Standard Support</li>
+                                    }
+                                }
+                                
+                                @if (plan.MaxWorkOrdersPerMonth.HasValue)
+                                {
+                                    <li><i class="bi bi-check-circle-fill"></i> Up to @plan.MaxWorkOrdersPerMonth Work Orders/Month</li>
+                                }
+                            </ul>
+                            
+                            @if (isEnterprise && plan.MonthlyPrice == 0)
+                            {
+                                <a href="#contact" class="btn btn-outline-primary w-100">Contact Sales</a>
+                            }
+                            else
+                            {
+                                <a asp-area="Identity" asp-page="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100">
+                                    @(isStarter ? "Start Free Trial" : "Get Started")
+                                </a>
+                            }
+                        </div>
                     </div>
-                    <p class="price-note">Then choose a paid plan to continue</p>
-                    <ul class="pricing-features">
-                        <li><i class="bi bi-check-circle-fill"></i> Up to 5 Assets</li>
-                        <li><i class="bi bi-check-circle-fill"></i> 1 Admin user</li>
-                        <li><i class="bi bi-check-circle-fill"></i> QR Code Tracking</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Basic Work Orders</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Email Support</li>
-                    </ul>
-                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-outline-primary w-100">Start Free Trial</a>
+                }
+            </div>
+        }
+        else
+        {
+            @* Fallback if no plans are available *@
+            <div class="row g-4 justify-content-center">
+                <div class="col-lg-8">
+                    <div class="alert alert-info text-center" role="alert">
+                        <i class="bi bi-info-circle"></i>
+                        <h4 class="alert-heading">Pricing Plans Coming Soon</h4>
+                        <p>We're currently setting up our subscription plans. Please check back soon or contact us for more information.</p>
+                        <hr>
+                        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary">Sign Up for Updates</a>
+                    </div>
                 </div>
             </div>
-            
-            <div class="col-lg-4">
-                <div class="pricing-card featured">
-                    <div class="pricing-badge popular">Most Popular</div>
-                    <h3>Professional</h3>
-                    <p>For growing enterprises</p>
-                    <div class="price">
-                        <span class="currency">$</span>
-                        <span class="amount">49</span>
-                        <span class="period">/month</span>
-                    </div>
-                    <p class="price-note">Billed annually at $588</p>
-                    <ul class="pricing-features">
-                        <li><i class="bi bi-check-circle-fill"></i> Up to 200 Assets</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Up to 10 Users</li>
-                        <li><i class="bi bi-check-circle-fill"></i> QR Code Tracking</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Preventive Maintenance</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Advanced Reports</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Priority Support</li>
-                    </ul>
-                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary w-100">Get Started</a>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                <div class="pricing-card">
-                    <h3>Enterprise</h3>
-                    <p>For large organizations</p>
-                    <div class="price">
-                        <span class="amount">Custom</span>
-                    </div>
-                    <p class="price-note">Contact us for pricing</p>
-                    <ul class="pricing-features">
-                        <li><i class="bi bi-check-circle-fill"></i> Unlimited Assets</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Unlimited Users</li>
-                        <li><i class="bi bi-check-circle-fill"></i> All Features</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Custom Integrations</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Dedicated Account Manager</li>
-                        <li><i class="bi bi-check-circle-fill"></i> 24/7 Phone Support</li>
-                    </ul>
-                    <a href="#contact" class="btn btn-outline-primary w-100">Contact Sales</a>
-                </div>
-            </div>
-        </div>
+        }
     </div>
 </section>
 

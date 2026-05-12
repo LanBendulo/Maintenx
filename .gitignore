@@ -3,3 +3,7 @@ node_modules/
 .env
 bin/
 obj/
+
+# Production configuration with secrets
+appsettings.Production.json
+appsettings.Development.Local.json

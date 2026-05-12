@@ -6,21 +6,20 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Text;
-using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
-using IT15_Project.Models;
-using IT15_Project.Data;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using IT15_Project.Data;
+using IT15_Project.Models;
+using IT15_Project.Services.Interfaces;
+using IT15_Project.Services.Security;
 
 namespace IT15_Project.Areas.Identity.Pages.Account
 {
@@ -32,8 +31,9 @@ namespace IT15_Project.Areas.Identity.Pages.Account
         private readonly IUserStore<ApplicationUser> _userStore;
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
-        private readonly IEmailSender _emailSender;
+        private readonly IEmailConfirmationService _emailConfirmationService;
         private readonly ApplicationDbContext _context;
+        private readonly ITurnstileValidationService _turnstileValidationService;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
@@ -41,8 +41,9 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             IUserStore<ApplicationUser> userStore,
             SignInManager<ApplicationUser> signInManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender,
-            ApplicationDbContext context)
+            IEmailConfirmationService emailConfirmationService,
+            ApplicationDbContext context,
+            ITurnstileValidationService turnstileValidationService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -50,8 +51,9 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             _emailStore = GetEmailStore();
             _signInManager = signInManager;
             _logger = logger;
-            _emailSender = emailSender;
+            _emailConfirmationService = emailConfirmationService;
             _context = context;
+            _turnstileValidationService = turnstileValidationService;
         }
 
         /// <summary>
@@ -118,6 +120,12 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             [Display(Name = "Confirm password")]
             [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
             public string ConfirmPassword { get; set; }
+
+            /// <summary>
+            ///     Turnstile CAPTCHA token
+            ///     Only required when Turnstile is enabled
+            /// </summary>
+            public string TurnstileToken { get; set; }
         }
 
 
@@ -127,6 +135,7 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
         }
 
+        [EnableRateLimiting("registration")]
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
@@ -134,6 +143,38 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             
             if (ModelState.IsValid)
             {
+                // ============================================================
+                // PHASE 0: Validate Turnstile CAPTCHA (if enabled)
+                // ============================================================
+                if (_turnstileValidationService.IsEnabled())
+                {
+                    // Validate token is provided
+                    if (string.IsNullOrWhiteSpace(Input.TurnstileToken))
+                    {
+                        _logger.LogWarning("Turnstile token missing for registration attempt. Email: {Email}", Input.Email);
+                        ModelState.AddModelError(string.Empty, "Please complete the CAPTCHA verification.");
+                        return Page();
+                    }
+
+                    var turnstileValid = await _turnstileValidationService.ValidateTokenAsync(
+                        Input.TurnstileToken,
+                        HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                    if (!turnstileValid)
+                    {
+                        _logger.LogWarning("Registration attempt failed Turnstile validation from IP: {IP}", 
+                            HttpContext.Connection.RemoteIpAddress);
+                        ModelState.AddModelError(string.Empty, "CAPTCHA validation failed. Please try again.");
+                        return Page();
+                    }
+
+                    _logger.LogInformation("Turnstile validation succeeded for registration");
+                }
+                else
+                {
+                    _logger.LogInformation("Turnstile is disabled - skipping CAPTCHA validation for registration");
+                }
+                // ============================================================
                 // ============================================================
                 // PHASE 1: Ensure Required Roles Exist
                 // ============================================================
@@ -200,27 +241,17 @@ namespace IT15_Project.Areas.Identity.Pages.Account
                     }
 
                     // ============================================================
-                    // PHASE 5: Email Confirmation (Optional)
+                    // PHASE 5: Email Confirmation using branded template service
                     // ============================================================
-                    var userId = await _userManager.GetUserIdAsync(user);
-                    var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-                    var callbackUrl = Url.Page(
-                        "/Account/ConfirmEmail",
-                        pageHandler: null,
-                        values: new { area = "Identity", userId = userId, code = code, returnUrl = returnUrl },
-                        protocol: Request.Scheme);
-
-                    // Note: Email sending is optional - configure IEmailSender if needed
                     try
                     {
-                        await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                            $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                        await _emailConfirmationService.SendConfirmationEmailAsync(user, returnUrl);
+                        _logger.LogInformation($"Confirmation email sent to '{Input.Email}'");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to send confirmation email");
-                        // Continue anyway - email is optional
+                        _logger.LogWarning(ex, "Failed to send confirmation email to '{Email}'", Input.Email);
+                        // Continue anyway - email confirmation is optional
                     }
 
                     // ============================================================

@@ -1,5 +1,6 @@
 @page
 @model RegisterModel
+@inject IConfiguration Configuration
 @{
     ViewData["Title"] = "Create Account";
     Layout = "/Views/Shared/_AuthLayout.cshtml";
@@ -208,6 +209,22 @@
                     </label>
                 </div>
 
+                <!-- Turnstile CAPTCHA Widget (only if enabled) -->
+                @if (Configuration.GetValue<bool>("Turnstile:Enabled"))
+                {
+                    <div class="mx-field" style="margin-top:16px;">
+                        <div id="turnstile-widget" class="cf-turnstile" 
+                             data-sitekey="@Configuration["Turnstile:SiteKey"]"
+                             data-callback="onTurnstileSuccess"
+                             data-error-callback="onTurnstileError"
+                             data-theme="light"
+                             data-size="normal">
+                        </div>
+                        <input type="hidden" asp-for="Input.TurnstileToken" id="turnstile-token" />
+                        <span asp-validation-for="Input.TurnstileToken" class="field-error"></span>
+                    </div>
+                }
+
                 <!-- Submit -->
                 <button id="registerSubmit" type="submit" class="btn-mx-accent" disabled>
                     <span class="btn-text">Create Account</span>
@@ -228,6 +245,26 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    
+    @if (Configuration.GetValue<bool>("Turnstile:Enabled"))
+    {
+        <!-- Cloudflare Turnstile Script -->
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        
+        <script>
+            // ── Turnstile Callbacks ──────────────────────
+            function onTurnstileSuccess(token) {
+                console.log('Turnstile validation succeeded');
+                document.getElementById('turnstile-token').value = token;
+            }
+
+            function onTurnstileError(error) {
+                console.error('Turnstile error:', error);
+                document.getElementById('turnstile-token').value = '';
+            }
+        </script>
+    }
+    
     <script>
         // ── Password eye toggle ──────────────────────
         document.getElementById('toggle-reg-pwd').addEventListener('click', function () {
@@ -316,7 +353,20 @@
         });
 
         // ── Spinner on submit ────────────────────────
-        document.getElementById('registerForm').addEventListener('submit', function () {
+        document.getElementById('registerForm').addEventListener('submit', function (e) {
+            @if (Configuration.GetValue<bool>("Turnstile:Enabled"))
+            {
+                <text>
+                // Validate Turnstile token before submission
+                const turnstileToken = document.getElementById('turnstile-token').value;
+                if (!turnstileToken || turnstileToken.trim() === '') {
+                    e.preventDefault();
+                    alert('Please complete the CAPTCHA verification.');
+                    return false;
+                }
+                </text>
+            }
+
             const spinner = document.getElementById('reg-spinner');
             const text    = submitBtn.querySelector('.btn-text');
             text.textContent = 'Creating Account…';

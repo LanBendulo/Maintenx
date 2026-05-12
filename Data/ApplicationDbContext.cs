@@ -36,6 +36,7 @@ namespace IT15_Project.Data
         public DbSet<WorkOrderPart> WorkOrderParts { get; set; }
         public DbSet<WorkOrderCost> WorkOrderCosts { get; set; }
         public DbSet<AssetStatusHistory> AssetStatusHistories { get; set; }
+        public DbSet<InventoryMovement> InventoryMovements { get; set; }
 
         // SaaS Platform Tables
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
@@ -294,6 +295,37 @@ namespace IT15_Project.Data
                 .HasOne(woc => woc.WorkOrder)
                 .WithMany()
                 .HasForeignKey(woc => woc.WorkOrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure InventoryMovement relationships
+            builder.Entity<InventoryMovement>()
+                .HasOne(im => im.Company)
+                .WithMany()
+                .HasForeignKey(im => im.CompanyId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<InventoryMovement>()
+                .HasOne(im => im.Part)
+                .WithMany()
+                .HasForeignKey(im => im.PartId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<InventoryMovement>()
+                .HasOne(im => im.WorkOrder)
+                .WithMany()
+                .HasForeignKey(im => im.WorkOrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<InventoryMovement>()
+                .HasOne(im => im.WorkOrderPart)
+                .WithMany()
+                .HasForeignKey(im => im.WorkOrderPartId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<InventoryMovement>()
+                .HasOne(im => im.PerformedByUser)
+                .WithMany()
+                .HasForeignKey(im => im.PerformedByUserId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }

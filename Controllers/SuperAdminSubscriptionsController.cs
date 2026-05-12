@@ -282,6 +282,64 @@ namespace IT15_Project.Controllers
                 return BadRequest(new { success = false, message = "Failed to update payment status" });
             }
         }
+
+        /// <summary>
+        /// API: Get all companies for dropdown
+        /// </summary>
+        [HttpGet("/api/companies")]
+        public async Task<IActionResult> GetCompanies()
+        {
+            try
+            {
+                var companies = await _context.Companies
+                    .AsNoTracking()
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.CompanyName)
+                    .Select(c => new
+                    {
+                        c.CompanyId,
+                        c.CompanyName
+                    })
+                    .ToListAsync();
+
+                return Ok(companies);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading companies");
+                return BadRequest(new { success = false, message = "Failed to load companies" });
+            }
+        }
+
+        /// <summary>
+        /// API: Get all subscription plans for dropdown
+        /// </summary>
+        [HttpGet("/api/subscription-plans")]
+        public async Task<IActionResult> GetSubscriptionPlans()
+        {
+            try
+            {
+                var plans = await _context.SubscriptionPlans
+                    .AsNoTracking()
+                    .OrderBy(p => p.MonthlyPrice)
+                    .Select(p => new
+                    {
+                        p.PlanId,
+                        p.Name,
+                        p.MonthlyPrice,
+                        p.YearlyPrice,
+                        p.IsActive
+                    })
+                    .ToListAsync();
+
+                return Ok(plans);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading subscription plans");
+                return BadRequest(new { success = false, message = "Failed to load plans" });
+            }
+        }
     }
 
     public class CreatePlanRequest

@@ -11,9 +11,19 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('PM Script loaded');
         console.log('Button exists:', document.getElementById('openScheduleModal'));
+        
+        // Set minimum date for next due date input (today)
+        const nextDueDateInput = document.getElementById('schedule-next-due');
+        if (nextDueDateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            nextDueDateInput.setAttribute('min', today);
+            console.log('[PM] Set minimum date for next due date:', today);
+        }
+        
         loadAssets();
         loadTechnicians();
         setupEventListeners();
+        initializeGovernanceChecks(); // ← GOVERNANCE: Check generation eligibility on load
     });
 
     // ── Event Listeners ─────────────────────────────────────────
@@ -152,6 +162,7 @@
         document.getElementById('submit-btn-text').textContent = 'Create Schedule';
         document.getElementById('scheduleForm').reset();
         document.getElementById('schedule-id').value = '';
+        document.getElementById('schedule-priority').value = 'Medium'; // Reset to default
         
         // Set default next due date to tomorrow
         const tomorrow = new Date();
@@ -185,6 +196,7 @@
                 document.getElementById('schedule-frequency').value = data.frequencyDays;
                 document.getElementById('schedule-next-due').value = data.nextDueDate.split('T')[0];
                 document.getElementById('schedule-technician').value = data.defaultTechnicianId || '';
+                document.getElementById('schedule-priority').value = data.priority || 'Medium';
                 
                 clearErrors();
                 document.getElementById('scheduleModal').classList.add('open');
@@ -232,6 +244,16 @@
         if (!nextDue) {
             showError('err-next-due');
             hasError = true;
+        } else {
+            // Validate next due date is not in the past
+            const selectedDate = new Date(nextDue);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+            
+            if (selectedDate < today) {
+                showError('err-next-due', 'Next due date cannot be in the past.');
+                hasError = true;
+            }
         }
         
         if (hasError) return;
@@ -243,7 +265,8 @@
             description: document.getElementById('schedule-description').value.trim() || null,
             frequencyDays: frequency,
             nextDueDate: nextDue,
-            defaultTechnicianId: document.getElementById('schedule-technician').value ? parseInt(document.getElementById('schedule-technician').value) : null
+            defaultTechnicianId: document.getElementById('schedule-technician').value ? parseInt(document.getElementById('schedule-technician').value) : null,
+            priority: document.getElementById('schedule-priority').value || 'Medium'
         };
         
         try {
@@ -280,6 +303,19 @@
 
     // ── Generate Work Order ─────────────────────────────────────
     async function generateWorkOrder(scheduleId) {
+        // Check governance before showing confirmation
+        try {
+            const checkResponse = await fetch(`/admin/preventive-maintenance/${scheduleId}/can-generate`);
+            const checkData = await checkResponse.json();
+            
+            if (!checkData.canGenerate) {
+                showToast(checkData.tooltipMessage || 'Cannot generate work order at this time', false);
+                return;
+            }
+        } catch (error) {
+            console.error('Governance check failed:', error);
+        }
+        
         if (!confirm('Generate a work order from this schedule?')) {
             return;
         }
@@ -407,14 +443,22 @@
     }
 
     // ── Show Error ──────────────────────────────────────────────
-    function showError(errorId) {
-        document.getElementById(errorId).style.display = 'block';
+    function showError(errorId, customMessage) {
+        const errorEl = document.getElementById(errorId);
+        if (customMessage) {
+            errorEl.textContent = customMessage;
+        }
+        errorEl.style.display = 'block';
     }
 
     // ── Clear Errors ────────────────────────────────────────────
     function clearErrors() {
         document.querySelectorAll('.input-error').forEach(function(el) {
             el.style.display = 'none';
+            // Reset to default error messages if they were customized
+            if (el.id === 'err-next-due') {
+                el.textContent = 'Please select a due date.';
+            }
         });
     }
 
@@ -432,5 +476,111 @@
         setTimeout(function() {
             toast.classList.remove('show');
         }, 3000);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PM GOVERNANCE UI LOGIC
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Initialize governance checks for all PM schedules on page load
+     * Disables "Generate Work Order" buttons when not allowed
+     * Shows tooltips explaining why generation is blocked
+     */
+    async function initializeGovernanceChecks() {
+        const generateButtons = document.querySelectorAll('.action-generate-wo');
+        
+        for (const button of generateButtons) {
+            const scheduleId = button.dataset.scheduleId;
+            await updateGenerationButtonState(scheduleId, button);
+        }
+    }
+
+    /**
+     * Update a single generation button based on governance rules
+     * @param {number} scheduleId - PM schedule ID
+     * @param {HTMLElement} button - Generate button element
+     */
+    async function updateGenerationButtonState(scheduleId, button) {
+        try {
+            const response = await fetch(`/admin/preventive-maintenance/${scheduleId}/can-generate`);
+            const status = await response.json();
+            
+            // Update button state
+            if (!status.canGenerate) {
+                button.classList.add('disabled');
+                button.style.opacity = '0.5';
+                button.style.cursor = 'not-allowed';
+                button.title = status.tooltipMessage;
+                
+                // Prevent click when disabled
+                button.addEventListener('click', function(e) {
+                    if (this.classList.contains('disabled')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showToast(status.tooltipMessage, false);
+                    }
+                }, true);
+            } else {
+                button.classList.remove('disabled');
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+                button.title = 'Generate work order from this schedule';
+            }
+            
+            // Update status badge in table row (if exists)
+            const row = button.closest('tr');
+            if (row) {
+                updateRowStatusIndicator(row, status);
+            }
+        } catch (error) {
+            console.error(`Failed to check governance for schedule ${scheduleId}:`, error);
+        }
+    }
+
+    /**
+     * Update visual status indicator in table row
+     * Shows: Due, Overdue, Active WO, Not Due
+     * @param {HTMLElement} row - Table row element
+     * @param {Object} status - Governance status object
+     */
+    function updateRowStatusIndicator(row, status) {
+        // Find or create status indicator cell
+        let statusCell = row.querySelector('.pm-status-indicator');
+        
+        if (!statusCell) {
+            // Create status indicator if it doesn't exist
+            const actionsCell = row.querySelector('.actions-cell');
+            if (actionsCell) {
+                statusCell = document.createElement('span');
+                statusCell.className = 'pm-status-indicator';
+                statusCell.style.marginLeft = '8px';
+                statusCell.style.fontSize = '0.75rem';
+                statusCell.style.padding = '2px 8px';
+                statusCell.style.borderRadius = '12px';
+                statusCell.style.fontWeight = '500';
+                actionsCell.insertBefore(statusCell, actionsCell.firstChild);
+            }
+        }
+        
+        if (statusCell) {
+            statusCell.textContent = status.statusMessage;
+            statusCell.title = status.tooltipMessage;
+            
+            // Color coding
+            if (status.hasActiveWorkOrder) {
+                statusCell.style.backgroundColor = '#DBEAFE'; // Blue
+                statusCell.style.color = '#1E40AF';
+            } else if (status.isOverdue) {
+                statusCell.style.backgroundColor = '#FEE2E2'; // Red
+                statusCell.style.color = '#991B1B';
+            } else if (status.isDue) {
+                statusCell.style.backgroundColor = '#FEF3C7'; // Yellow
+                statusCell.style.color = '#92400E';
+            } else {
+                statusCell.style.backgroundColor = '#F3F4F6'; // Gray
+                statusCell.style.color = '#4B5563';
+            }
+        }
     }
 })();

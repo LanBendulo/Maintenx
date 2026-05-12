@@ -1,0 +1,84 @@
+@using IT15_Project.Services
+@inject SubscriptionService SubscriptionService
+@inject IT15_Project.Services.ITenantService TenantService
+
+@{
+    var companyId = TenantService.GetCurrentCompanyIdNullable();
+    if (companyId.HasValue)
+    {
+        var usage = await SubscriptionService.GetUsageStatsAsync(companyId.Value);
+        
+        <div class="card">
+            <div class="section-header" style="margin-bottom:16px;">
+                <div>
+                    <h3 style="font-size:16px;font-weight:700;color:var(--mx-txt);margin-bottom:4px;">Subscription Usage</h3>
+                    <span style="font-size:12px;color:var(--mx-muted);">@usage.PlanName Plan</span>
+                </div>
+            </div>
+            
+            <div style="display:grid;gap:16px;">
+                <!-- Users -->
+                <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--mx-txt);">Users</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--mx-txt);">
+                            @usage.UserCount @if (usage.MaxUsers.HasValue) { <span style="color:var(--mx-muted);">/ @usage.MaxUsers</span> }
+                            else { <span style="color:var(--mx-muted);">/ Unlimited</span> }
+                        </span>
+                    </div>
+                    @if (usage.MaxUsers.HasValue)
+                    {
+                        var userColor = usage.UserPercentage >= 90 ? "var(--mx-red)" : usage.UserPercentage >= 75 ? "var(--mx-orange)" : "var(--mx-blue)";
+                        <div style="height:8px;background:var(--mx-border);border-radius:4px;overflow:hidden;">
+                            <div style="width:@usage.UserPercentage%;height:100%;background:@userColor;transition:width 0.3s;"></div>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Assets -->
+                <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--mx-txt);">Assets</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--mx-txt);">
+                            @usage.AssetCount @if (usage.MaxAssets.HasValue) { <span style="color:var(--mx-muted);">/ @usage.MaxAssets</span> }
+                            else { <span style="color:var(--mx-muted);">/ Unlimited</span> }
+                        </span>
+                    </div>
+                    @if (usage.MaxAssets.HasValue)
+                    {
+                        var assetColor = usage.AssetPercentage >= 90 ? "var(--mx-red)" : usage.AssetPercentage >= 75 ? "var(--mx-orange)" : "var(--mx-green)";
+                        <div style="height:8px;background:var(--mx-border);border-radius:4px;overflow:hidden;">
+                            <div style="width:@usage.AssetPercentage%;height:100%;background:@assetColor;transition:width 0.3s;"></div>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Work Orders (This Month) -->
+                @if (usage.MaxWorkOrders.HasValue)
+                {
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <span style="font-size:13px;font-weight:600;color:var(--mx-txt);">Work Orders (This Month)</span>
+                            <span style="font-size:13px;font-weight:700;color:var(--mx-txt);">
+                                @usage.WorkOrderCount <span style="color:var(--mx-muted);">/ @usage.MaxWorkOrders</span>
+                            </span>
+                        </div>
+                        @{
+                            var woColor = usage.WorkOrderPercentage >= 90 ? "var(--mx-red)" : usage.WorkOrderPercentage >= 75 ? "var(--mx-orange)" : "var(--mx-navy)";
+                        }
+                        <div style="height:8px;background:var(--mx-border);border-radius:4px;overflow:hidden;">
+                            <div style="width:@usage.WorkOrderPercentage%;height:100%;background:@woColor;transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            @if (User.IsInRole("Admin"))
+            {
+                <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--mx-border);">
+                    <a href="/dashboard" class="btn-secondary" style="width:100%;text-align:center;">View Subscription Details</a>
+                </div>
+            }
+        </div>
+    }
+}

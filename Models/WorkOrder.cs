@@ -20,6 +20,9 @@ namespace IT15_Project.Models
         [Column("maintenance_request_id")]
         public int? MaintenanceRequestId { get; set; }
 
+        [Column("preventive_schedule_id")]
+        public int? PreventiveScheduleId { get; set; }
+
         [Column("source")]
         [StringLength(50)]
         public string? Source { get; set; } = "Manual";  // Request, Preventive, Manual
@@ -66,6 +69,10 @@ namespace IT15_Project.Models
         [StringLength(450)]
         public string? ArchivedByUserId { get; set; }
 
+        [Column("archive_reason")]
+        [StringLength(500)]
+        public string? ArchiveReason { get; set; }
+
         // Navigation properties
         [ForeignKey("CompanyId")]
         public virtual Company? Company { get; set; }
@@ -81,6 +88,9 @@ namespace IT15_Project.Models
 
         [ForeignKey("MaintenanceRequestId")]
         public virtual MaintenanceRequest? MaintenanceRequest { get; set; }
+
+        [ForeignKey("PreventiveScheduleId")]
+        public virtual PreventiveSchedule? PreventiveSchedule { get; set; }
 
         [ForeignKey("ArchivedByUserId")]
         public virtual ApplicationUser? ArchivedByUser { get; set; }

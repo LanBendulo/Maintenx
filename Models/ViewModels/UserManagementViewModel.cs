@@ -96,31 +96,46 @@ namespace IT15_Project.Models.ViewModels
         public string? Id { get; set; } // Null for create, populated for edit
         
         [Required(ErrorMessage = "Full name is required")]
-        [StringLength(200, ErrorMessage = "Full name cannot exceed 200 characters")]
+        [StringLength(200, MinimumLength = 2, ErrorMessage = "Full name must be between 2 and 200 characters")]
+        [RegularExpression(@"^[a-zA-Z\s\.\-']+$", ErrorMessage = "Full name can only contain letters, spaces, dots, hyphens, and apostrophes")]
+        [Display(Name = "Full Name")]
         public string FullName { get; set; } = string.Empty;
         
         [Required(ErrorMessage = "Email is required")]
-        [EmailAddress(ErrorMessage = "Invalid email address")]
-        [StringLength(256)]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        [StringLength(256, ErrorMessage = "Email cannot exceed 256 characters")]
+        [RegularExpression(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Please enter a valid email format")]
+        [Display(Name = "Email Address")]
         public string Email { get; set; } = string.Empty;
         
-        [Phone(ErrorMessage = "Invalid phone number")]
-        [StringLength(50)]
+        [Phone(ErrorMessage = "Please enter a valid phone number")]
+        [StringLength(50, ErrorMessage = "Phone number cannot exceed 50 characters")]
+        [RegularExpression(@"^[\d\s\+\-\(\)]+$", ErrorMessage = "Phone number can only contain digits, spaces, +, -, (, )")]
+        [Display(Name = "Phone Number")]
         public string? PhoneNumber { get; set; }
         
         [Required(ErrorMessage = "Role is required")]
+        [Display(Name = "User Role")]
         public string Role { get; set; } = string.Empty;
         
+        [Display(Name = "Account Active")]
         public bool IsActive { get; set; } = true;
         
         // Optional Personnel link
+        [Display(Name = "Link to Personnel Record")]
         public int? LinkedPersonnelId { get; set; }
         
         // Password (only for create)
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{6,}$", 
+            ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
         public string? Password { get; set; }
         
-        [Compare("Password", ErrorMessage = "Passwords do not match")]
+        [Compare("Password", ErrorMessage = "Password and confirmation password do not match")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm Password")]
         public string? ConfirmPassword { get; set; }
         
         // Available options for dropdowns

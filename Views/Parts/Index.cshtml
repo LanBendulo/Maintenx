@@ -143,6 +143,10 @@
                                 <div class="action-menu">
                                     <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
                                     <div class="action-dropdown">
+                                        <a href="#" class="action-view-movement-history" data-part-id="@part.PartId" data-part-name="@part.PartName">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                            Movement History
+                                        </a>
                                         <a href="#" class="action-edit-part" data-part-id="@part.PartId">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                             Edit
@@ -304,6 +308,37 @@
     </div>
 </div>
 
+<!-- MOVEMENT HISTORY MODAL -->
+<div class="mx-modal-overlay" id="movementHistoryModal" role="dialog" aria-modal="true">
+    <div class="mx-modal" style="max-width:900px;">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon" style="background:rgba(43,126,212,.10);color:var(--mx-blue);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="modal-title">Inventory Movement History</div>
+                    <div class="modal-subtitle" id="movement-history-part-name">Part Name</div>
+                </div>
+            </div>
+            <button class="modal-close" id="closeMovementHistoryModal" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" style="max-height:500px;overflow-y:auto;">
+            <div id="movementHistoryContainer">
+                <div style="text-align:center;padding:40px;color:var(--mx-muted);">
+                    Loading movement history...
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="closeMovementHistoryBtn">Close</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="~/js/parts.js" asp-append-version="true"></script>
+    <script src="~/js/part-movement-history.js" asp-append-version="true"></script>
 }

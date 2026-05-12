@@ -24,7 +24,7 @@
         <h2>Create New User</h2>
     </div>
 
-    <form asp-action="Create" method="post">
+    <form asp-action="Create" method="post" id="createUserForm">
         @Html.AntiForgeryToken()
         
         <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom:20px;"></div>
@@ -37,21 +37,23 @@
             
             <div class="form-group">
                 <label asp-for="FullName">Full Name <span style="color:var(--mx-red);">*</span></label>
-                <input asp-for="FullName" class="form-control" placeholder="Enter full name" required />
+                <input asp-for="FullName" class="form-control" placeholder="Enter full name" required maxlength="200" minlength="2" pattern="[a-zA-Z\s\.\-']+" />
                 <span asp-validation-for="FullName" class="text-danger"></span>
+                <small style="color:var(--mx-muted);font-size:12px;">Letters, spaces, dots, hyphens, and apostrophes only (2-200 characters)</small>
             </div>
 
             <div class="form-group">
                 <label asp-for="Email">Email Address <span style="color:var(--mx-red);">*</span></label>
-                <input asp-for="Email" type="email" class="form-control" placeholder="user@example.com" required />
+                <input asp-for="Email" type="email" class="form-control" placeholder="user@example.com" required maxlength="256" />
                 <span asp-validation-for="Email" class="text-danger"></span>
                 <small style="color:var(--mx-muted);font-size:12px;">This will be used as the username for login.</small>
             </div>
 
             <div class="form-group">
                 <label asp-for="PhoneNumber">Phone Number</label>
-                <input asp-for="PhoneNumber" type="tel" class="form-control" placeholder="+63 XXX XXX XXXX" />
+                <input asp-for="PhoneNumber" type="tel" class="form-control" placeholder="+63 XXX XXX XXXX" maxlength="50" pattern="[\d\s\+\-\(\)]+" />
                 <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                <small style="color:var(--mx-muted);font-size:12px;">Optional. Format: digits, spaces, +, -, (, )</small>
             </div>
         </div>
 
@@ -104,6 +106,7 @@
                         </option>
                     }
                 </select>
+                <span asp-validation-for="LinkedPersonnelId" class="text-danger"></span>
                 <small style="color:var(--mx-muted);font-size:12px;">
                     Link this user account to an existing personnel record for operational tracking.
                 </small>
@@ -118,28 +121,45 @@
 
             <div class="form-group">
                 <label asp-for="Password">Password</label>
-                <input asp-for="Password" type="password" class="form-control" placeholder="Enter password (min 6 characters)" />
+                <input asp-for="Password" type="password" class="form-control" placeholder="Enter password (min 6 characters)" minlength="6" maxlength="100" id="password-input" />
                 <span asp-validation-for="Password" class="text-danger"></span>
                 <small style="color:var(--mx-muted);font-size:12px;">
-                    Leave blank to auto-generate a temporary password. The password will be displayed after creation.
+                    Leave blank to auto-generate a temporary password. Must contain uppercase, lowercase, number, and special character.
                 </small>
+                <div id="password-strength" style="margin-top:8px;display:none;">
+                    <div style="font-size:12px;margin-bottom:4px;">Password strength:</div>
+                    <div style="display:flex;gap:4px;margin-bottom:4px;">
+                        <div class="strength-bar" id="strength-1"></div>
+                        <div class="strength-bar" id="strength-2"></div>
+                        <div class="strength-bar" id="strength-3"></div>
+                        <div class="strength-bar" id="strength-4"></div>
+                    </div>
+                    <div id="password-requirements" style="font-size:11px;color:var(--mx-muted);">
+                        <div id="req-length">✗ At least 6 characters</div>
+                        <div id="req-upper">✗ One uppercase letter</div>
+                        <div id="req-lower">✗ One lowercase letter</div>
+                        <div id="req-number">✗ One number</div>
+                        <div id="req-special">✗ One special character</div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
                 <label asp-for="ConfirmPassword">Confirm Password</label>
-                <input asp-for="ConfirmPassword" type="password" class="form-control" placeholder="Confirm password" />
+                <input asp-for="ConfirmPassword" type="password" class="form-control" placeholder="Confirm password" maxlength="100" id="confirm-password-input" />
                 <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                <div id="password-match-message" style="font-size:12px;margin-top:4px;display:none;"></div>
             </div>
         </div>
 
         <!-- Form Actions -->
         <div style="display:flex;gap:12px;justify-content:flex-end;padding-top:20px;border-top:1px solid var(--mx-border);">
             <a href="/admin/users" class="btn-secondary">Cancel</a>
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-primary" id="submit-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px;">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
                 </svg>
-                Create User
+                <span id="submit-text">Create User</span>
             </button>
         </div>
     </form>
@@ -176,6 +196,12 @@
     color: var(--mx-muted);
     opacity: 0.6;
 }
+.form-control.is-invalid {
+    border-color: var(--mx-red);
+}
+.form-control.is-valid {
+    border-color: var(--mx-green);
+}
 .text-danger {
     display: block;
     color: var(--mx-red);
@@ -209,9 +235,13 @@
     background: var(--mx-primary);
     color: #fff;
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: var(--mx-blue);
     transform: translateY(-1px);
+}
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 .btn-secondary {
     background: var(--mx-white);
@@ -222,8 +252,208 @@
     border-color: var(--mx-primary);
     color: var(--mx-primary);
 }
+.strength-bar {
+    height: 4px;
+    flex: 1;
+    background: #e5e7eb;
+    border-radius: 2px;
+    transition: background 0.3s;
+}
+.strength-bar.active-weak {
+    background: #ef4444;
+}
+.strength-bar.active-fair {
+    background: #f59e0b;
+}
+.strength-bar.active-good {
+    background: #10b981;
+}
+.strength-bar.active-strong {
+    background: #22c55e;
+}
+#password-requirements div {
+    margin: 2px 0;
+}
+#password-requirements div.met {
+    color: var(--mx-green);
+}
 </style>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+    (function() {
+        const passwordInput = document.getElementById('password-input');
+        const confirmPasswordInput = document.getElementById('confirm-password-input');
+        const passwordStrength = document.getElementById('password-strength');
+        const passwordMatchMessage = document.getElementById('password-match-message');
+        const submitBtn = document.getElementById('submit-btn');
+        const submitText = document.getElementById('submit-text');
+        const form = document.getElementById('createUserForm');
+
+        // Password strength checker
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                const password = this.value;
+                
+                if (password.length === 0) {
+                    passwordStrength.style.display = 'none';
+                    return;
+                }
+                
+                passwordStrength.style.display = 'block';
+                
+                // Check requirements
+                const hasLength = password.length >= 6;
+                const hasUpper = /[A-Z]/.test(password);
+                const hasLower = /[a-z]/.test(password);
+                const hasNumber = /\d/.test(password);
+                const hasSpecial = /[@@$!%*?&#]/.test(password);
+                
+                // Update requirement indicators
+                updateRequirement('req-length', hasLength);
+                updateRequirement('req-upper', hasUpper);
+                updateRequirement('req-lower', hasLower);
+                updateRequirement('req-number', hasNumber);
+                updateRequirement('req-special', hasSpecial);
+                
+                // Calculate strength
+                let strength = 0;
+                if (hasLength) strength++;
+                if (hasUpper) strength++;
+                if (hasLower) strength++;
+                if (hasNumber) strength++;
+                if (hasSpecial) strength++;
+                
+                // Update strength bars
+                updateStrengthBars(strength);
+                
+                // Validate input
+                if (hasLength && hasUpper && hasLower && hasNumber && hasSpecial) {
+                    passwordInput.classList.remove('is-invalid');
+                    passwordInput.classList.add('is-valid');
+                } else if (password.length > 0) {
+                    passwordInput.classList.add('is-invalid');
+                    passwordInput.classList.remove('is-valid');
+                }
+            });
+        }
+
+        // Password match checker
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                const password = passwordInput.value;
+                const confirmPassword = this.value;
+                
+                if (confirmPassword.length === 0) {
+                    passwordMatchMessage.style.display = 'none';
+                    confirmPasswordInput.classList.remove('is-invalid', 'is-valid');
+                    return;
+                }
+                
+                passwordMatchMessage.style.display = 'block';
+                
+                if (password === confirmPassword) {
+                    passwordMatchMessage.textContent = '✓ Passwords match';
+                    passwordMatchMessage.style.color = 'var(--mx-green)';
+                    confirmPasswordInput.classList.remove('is-invalid');
+                    confirmPasswordInput.classList.add('is-valid');
+                } else {
+                    passwordMatchMessage.textContent = '✗ Passwords do not match';
+                    passwordMatchMessage.style.color = 'var(--mx-red)';
+                    confirmPasswordInput.classList.add('is-invalid');
+                    confirmPasswordInput.classList.remove('is-valid');
+                }
+            });
+        }
+
+        // Form submission
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Disable submit button to prevent double submission
+                submitBtn.disabled = true;
+                submitText.textContent = 'Creating...';
+                
+                // Re-enable after 3 seconds in case of validation errors
+                setTimeout(function() {
+                    submitBtn.disabled = false;
+                    submitText.textContent = 'Create User';
+                }, 3000);
+            });
+        }
+
+        function updateRequirement(id, met) {
+            const element = document.getElementById(id);
+            if (met) {
+                element.textContent = element.textContent.replace('✗', '✓');
+                element.classList.add('met');
+            } else {
+                element.textContent = element.textContent.replace('✓', '✗');
+                element.classList.remove('met');
+            }
+        }
+
+        function updateStrengthBars(strength) {
+            const bars = ['strength-1', 'strength-2', 'strength-3', 'strength-4'];
+            const classes = ['active-weak', 'active-fair', 'active-good', 'active-strong'];
+            
+            bars.forEach((barId, index) => {
+                const bar = document.getElementById(barId);
+                bar.className = 'strength-bar';
+                
+                if (index < strength) {
+                    if (strength <= 2) {
+                        bar.classList.add('active-weak');
+                    } else if (strength === 3) {
+                        bar.classList.add('active-fair');
+                    } else if (strength === 4) {
+                        bar.classList.add('active-good');
+                    } else {
+                        bar.classList.add('active-strong');
+                    }
+                }
+            });
+        }
+
+        // Email validation
+        const emailInput = document.getElementById('Email');
+        if (emailInput) {
+            emailInput.addEventListener('blur', function() {
+                const email = this.value.trim();
+                if (email.length > 0) {
+                    const emailRegex = /^[a-zA-Z0-9._%+-]+@@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                    if (emailRegex.test(email)) {
+                        this.classList.remove('is-invalid');
+                        this.classList.add('is-valid');
+                    } else {
+                        this.classList.add('is-invalid');
+                        this.classList.remove('is-valid');
+                    }
+                }
+            });
+        }
+
+        // Full name validation
+        const fullNameInput = document.getElementById('FullName');
+        if (fullNameInput) {
+            fullNameInput.addEventListener('blur', function() {
+                const name = this.value.trim();
+                if (name.length >= 2 && name.length <= 200) {
+                    const nameRegex = /^[a-zA-Z\s\.\-']+$/;
+                    if (nameRegex.test(name)) {
+                        this.classList.remove('is-invalid');
+                        this.classList.add('is-valid');
+                    } else {
+                        this.classList.add('is-invalid');
+                        this.classList.remove('is-valid');
+                    }
+                } else if (name.length > 0) {
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                }
+            });
+        }
+    })();
+    </script>
 }

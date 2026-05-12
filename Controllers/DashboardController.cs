@@ -25,19 +25,22 @@ namespace IT15_Project.Controllers
         private readonly ITenantService _tenantService;
         private readonly ICostService _costService;
         private readonly AssetStatusService _assetStatusService;
+        private readonly Services.Parts.IPartsService _partsService;
 
         public DashboardController(
             ApplicationDbContext context, 
             UserManager<ApplicationUser> userManager,
             ITenantService tenantService,
             ICostService costService,
-            AssetStatusService assetStatusService)
+            AssetStatusService assetStatusService,
+            Services.Parts.IPartsService partsService)
         {
             _context = context;
             _userManager = userManager;
             _tenantService = tenantService;
             _costService = costService;
             _assetStatusService = assetStatusService;
+            _partsService = partsService;
         }
 
         [Route("dashboard")]
@@ -789,6 +792,24 @@ namespace IT15_Project.Controllers
                     }
                     workOrder.ActualCompletion = request.ActualCompletion.Value;
 
+                    // CONSUME STAGED PARTS (finalize inventory deduction)
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (userId != null)
+                    {
+                        var partsResult = await _partsService.ConsumeWorkOrderPartsAsync(
+                            workOrder.WorkOrderId, 
+                            userId, 
+                            companyId);
+                        
+                        if (!partsResult.Success)
+                        {
+                            return BadRequest(new { 
+                                success = false, 
+                                message = $"Work order completed but parts consumption failed: {partsResult.Message}" 
+                            });
+                        }
+                    }
+
                     // LOCK COSTS (recalculate and finalize)
                     var finalCost = await _costService.LockCostsAsync(workOrder.WorkOrderId, companyId);
 
@@ -825,9 +846,9 @@ namespace IT15_Project.Controllers
                 await _context.SaveChangesAsync();
 
                 // ASSET STATUS UPDATE: Handle Completed/Cancelled transitions
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (newStatus == WorkOrderStatuses.Completed || newStatus == WorkOrderStatuses.Cancelled)
                 {
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     await _assetStatusService.OnWorkOrderCompletedOrCancelledAsync(workOrder.WorkOrderId, userId);
                 }
 
@@ -968,88 +989,151 @@ namespace IT15_Project.Controllers
             }
         }
 
-        [HttpPut]
+        // ========================================
+        // WORK ORDER ARCHIVE OPERATIONS
+        // Enterprise-grade soft archival with lifecycle governance
+        // ========================================
+
+        /// <summary>
+        /// Archives a work order (soft delete with audit trail)
+        /// Only Completed or Cancelled work orders can be archived
+        /// </summary>
+        [HttpPost]
         [Route("work-orders/{id}/archive")]
-        public async Task<IActionResult> ArchiveWorkOrder(int id)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ArchiveWorkOrder(int id, [FromForm] string archiveReason)
         {
             try
             {
-                // TENANT-AWARE: Validate ownership before archive
                 var companyId = _tenantService.GetCurrentCompanyId();
-                
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // Verify work order belongs to company
                 var workOrder = await _context.WorkOrders
-                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);  // TENANT FILTER
+                    .FirstOrDefaultAsync(wo => wo.WorkOrderId == id && wo.CompanyId == companyId);
 
                 if (workOrder == null)
                 {
-                    return NotFound(new { success = false, message = "Work order not found." });
+                    return Json(new { success = false, message = "Work order not found." });
                 }
 
-                // RULE: Can only archive if status is Completed or Cancelled
-                if (!WorkOrderStatuses.CanArchive(workOrder.Status))
+                // Validate userId
+                if (string.IsNullOrEmpty(userId))
                 {
-                    return BadRequest(new { 
-                        success = false, 
-                        message = "Only completed or cancelled work orders can be archived. Current status: " + workOrder.Status 
-                    });
+                    return Json(new { success = false, message = "User not authenticated." });
                 }
 
-                if (workOrder.IsArchived)
-                {
-                    return BadRequest(new { success = false, message = "Work order is already archived." });
-                }
+                // Use archive service for lifecycle validation and audit
+                var archiveService = HttpContext.RequestServices
+                    .GetRequiredService<IT15_Project.Services.Archiving.IArchiveService>();
 
-                // Get current user ID
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var result = await archiveService.ArchiveWorkOrderAsync(id, userId, archiveReason);
 
-                workOrder.IsArchived = true;
-                workOrder.ArchivedAt = DateTime.Now;
-                workOrder.ArchivedByUserId = userId;
-                
-                await _context.SaveChangesAsync();
-
-                return Ok(new { success = true, message = "Work order archived successfully!" });
+                return Json(new { success = result.Success, message = result.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+                return Json(new { success = false, message = "An error occurred while archiving the work order." });
             }
         }
 
-        [HttpPut]
-        [Route("work-orders/{id}/unarchive")]
-        public async Task<IActionResult> UnarchiveWorkOrder(int id)
+        /// <summary>
+        /// Restores an archived work order
+        /// </summary>
+        [HttpPost]
+        [Route("work-orders/{id}/restore")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RestoreWorkOrder(int id)
         {
             try
             {
-                // TENANT-AWARE: Validate ownership before unarchive
                 var companyId = _tenantService.GetCurrentCompanyId();
-                
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // Verify work order belongs to company
                 var workOrder = await _context.WorkOrders
-                    .FirstOrDefaultAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);  // TENANT FILTER
+                    .FirstOrDefaultAsync(wo => wo.WorkOrderId == id && wo.CompanyId == companyId);
 
                 if (workOrder == null)
                 {
-                    return NotFound(new { success = false, message = "Work order not found." });
+                    return Json(new { success = false, message = "Work order not found." });
                 }
 
-                if (!workOrder.IsArchived)
+                // Validate userId
+                if (string.IsNullOrEmpty(userId))
                 {
-                    return BadRequest(new { success = false, message = "Work order is not archived." });
+                    return Json(new { success = false, message = "User not authenticated." });
                 }
 
-                // Restore from archive
-                workOrder.IsArchived = false;
-                workOrder.ArchivedAt = null;
-                workOrder.ArchivedByUserId = null;
-                
-                await _context.SaveChangesAsync();
+                // Use archive service
+                var archiveService = HttpContext.RequestServices
+                    .GetRequiredService<IT15_Project.Services.Archiving.IArchiveService>();
 
-                return Ok(new { success = true, message = "Work order restored successfully!" });
+                var result = await archiveService.RestoreWorkOrderAsync(id, userId);
+
+                return Json(new { success = result.Success, message = result.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = "An error occurred.", error = ex.Message });
+                return Json(new { success = false, message = "An error occurred while restoring the work order." });
+            }
+        }
+
+        /// <summary>
+        /// Checks if a work order can be archived based on lifecycle rules
+        /// </summary>
+        [HttpGet]
+        [Route("work-orders/{id}/can-archive")]
+        public async Task<IActionResult> CanArchiveWorkOrder(int id)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Verify work order belongs to company
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(wo => wo.WorkOrderId == id && wo.CompanyId == companyId);
+
+                if (workOrder == null)
+                {
+                    return Json(new { canArchive = false, message = "Work order not found." });
+                }
+
+                // Use archive service for lifecycle validation
+                var archiveService = HttpContext.RequestServices
+                    .GetRequiredService<IT15_Project.Services.Archiving.IArchiveService>();
+
+                var result = await archiveService.CanArchiveWorkOrderAsync(id);
+
+                return Json(new { canArchive = result.CanArchive, message = result.Message });
+            }
+            catch (Exception)
+            {
+                return Json(new { canArchive = false, message = "An error occurred." });
+            }
+        }
+
+        /// <summary>
+        /// Gets all archived work orders for the current company
+        /// </summary>
+        [HttpGet]
+        [Route("work-orders/archived")]
+        public async Task<IActionResult> ArchivedWorkOrders()
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                var archiveService = HttpContext.RequestServices
+                    .GetRequiredService<IT15_Project.Services.Archiving.IArchiveService>();
+
+                var archivedWorkOrders = await archiveService.GetArchivedWorkOrdersAsync(companyId);
+
+                return View(archivedWorkOrders);
+            }
+            catch (Exception)
+            {
+                return View(new List<WorkOrder>());
             }
         }
 

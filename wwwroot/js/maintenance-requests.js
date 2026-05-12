@@ -380,9 +380,16 @@
     const tableBody = document.getElementById('mr-tbody');
 
     function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const statusValue = statusFilter.value;
-        const priorityValue = priorityFilter.value;
+        if (!tableBody) {
+            console.warn('[FILTER] Table body not found');
+            return;
+        }
+
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        const statusValue = statusFilter ? statusFilter.value : '';
+        const priorityValue = priorityFilter ? priorityFilter.value : '';
+
+        console.log('[FILTER] Filtering with:', { searchTerm, statusValue, priorityValue });
 
         const rows = tableBody.querySelectorAll('tr');
         let visibleCount = 0;
@@ -392,7 +399,7 @@
             const rowStatus = row.getAttribute('data-status');
             const rowPriority = row.getAttribute('data-priority');
 
-            const matchesSearch = text.includes(searchTerm);
+            const matchesSearch = !searchTerm || text.includes(searchTerm);
             const matchesStatus = !statusValue || rowStatus === statusValue;
             const matchesPriority = !priorityValue || rowPriority === priorityValue;
 
@@ -408,18 +415,46 @@
         if (countElement) {
             countElement.innerHTML = `Showing <strong>${visibleCount}</strong> result${visibleCount !== 1 ? 's' : ''}`;
         }
+
+        console.log('[FILTER] Visible rows:', visibleCount);
     }
 
-    if (searchInput) searchInput.addEventListener('input', filterTable);
-    if (statusFilter) statusFilter.addEventListener('change', filterTable);
-    if (priorityFilter) priorityFilter.addEventListener('change', filterTable);
+    if (searchInput) {
+        searchInput.addEventListener('input', filterTable);
+        console.log('[FILTER] Search input listener attached');
+    }
+    
+    if (statusFilter) {
+        statusFilter.addEventListener('change', filterTable);
+        console.log('[FILTER] Status filter listener attached');
+    }
+    
+    if (priorityFilter) {
+        priorityFilter.addEventListener('change', filterTable);
+        console.log('[FILTER] Priority filter listener attached');
+    }
 
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            statusFilter.value = '';
-            priorityFilter.value = '';
+            if (searchInput) searchInput.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (priorityFilter) priorityFilter.value = '';
             filterTable();
+        });
+        console.log('[FILTER] Reset button listener attached');
+    }
+
+    // Initial log of data attributes
+    if (tableBody) {
+        const rows = tableBody.querySelectorAll('tr');
+        console.log('[FILTER] Total rows:', rows.length);
+        rows.forEach((row, index) => {
+            if (index < 3) { // Log first 3 rows for debugging
+                console.log(`[FILTER] Row ${index}:`, {
+                    status: row.getAttribute('data-status'),
+                    priority: row.getAttribute('data-priority')
+                });
+            }
         });
     }
 

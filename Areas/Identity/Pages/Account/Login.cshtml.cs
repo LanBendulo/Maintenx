@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -17,6 +18,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using IT15_Project.Models;
 using IT15_Project.Data;
+using IT15_Project.Services.Security;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IT15_Project.Areas.Identity.Pages.Account
 {
@@ -26,17 +29,20 @@ namespace IT15_Project.Areas.Identity.Pages.Account
         private readonly UserManager<ApplicationUser>  _userManager;
         private readonly ILogger<LoginModel>        _logger;
         private readonly ApplicationDbContext _context;
+        private readonly ITurnstileValidationService _turnstileService;
 
         public LoginModel(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser>  userManager,
             ILogger<LoginModel>        logger,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            ITurnstileValidationService turnstileService)
         {
             _signInManager = signInManager;
             _userManager   = userManager;
             _logger        = logger;
             _context       = context;
+            _turnstileService = turnstileService;
         }
 
         /// <summary>
@@ -93,6 +99,12 @@ namespace IT15_Project.Areas.Identity.Pages.Account
             /// </summary>
             [Display(Name = "Remember me?")]
             public bool RememberMe { get; set; }
+
+            /// <summary>
+            /// Cloudflare Turnstile response token for CAPTCHA validation
+            /// Only required when Turnstile is enabled
+            /// </summary>
+            public string TurnstileToken { get; set; }
         }
 
         public async Task OnGetAsync(string returnUrl = null)
@@ -109,9 +121,18 @@ namespace IT15_Project.Areas.Identity.Pages.Account
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
+            // DEBUG: Log external authentication schemes
+            _logger.LogInformation("=== External Authentication Schemes ===");
+            _logger.LogInformation("Count: {Count}", ExternalLogins.Count);
+            foreach (var scheme in ExternalLogins)
+            {
+                _logger.LogInformation("Provider: {Name}, DisplayName: {DisplayName}", scheme.Name, scheme.DisplayName);
+            }
+
             ReturnUrl = returnUrl;
         }
 
+        [EnableRateLimiting("login")]
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
@@ -120,6 +141,43 @@ namespace IT15_Project.Areas.Identity.Pages.Account
 
             if (ModelState.IsValid)
             {
+                // ═══════════════════════════════════════════════════════════
+                // TURNSTILE CAPTCHA VALIDATION (Server-Side)
+                // Only validate if Turnstile is enabled in configuration
+                // ═══════════════════════════════════════════════════════════
+                if (_turnstileService.IsEnabled())
+                {
+                    // Validate token is provided
+                    if (string.IsNullOrWhiteSpace(Input.TurnstileToken))
+                    {
+                        _logger.LogWarning("Turnstile token missing for login attempt. Email: {Email}", Input.Email);
+                        ModelState.AddModelError(string.Empty, "Please complete the CAPTCHA verification.");
+                        return Page();
+                    }
+
+                    var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+                    var turnstileResult = await _turnstileService.ValidateTokenDetailedAsync(
+                        Input.TurnstileToken, remoteIp);
+
+                    if (!turnstileResult.Success)
+                    {
+                        _logger.LogWarning(
+                            "Turnstile validation failed for login attempt. Email: {Email}, IP: {IP}, Errors: {Errors}",
+                            Input.Email, remoteIp, string.Join(", ", turnstileResult.ErrorCodes));
+
+                        ModelState.AddModelError(string.Empty, 
+                            turnstileResult.ErrorMessage ?? "CAPTCHA verification failed. Please try again.");
+                        return Page();
+                    }
+
+                    _logger.LogInformation("Turnstile validation succeeded for login attempt: {Email}", Input.Email);
+                }
+                else
+                {
+                    _logger.LogInformation("Turnstile is disabled - skipping CAPTCHA validation for login attempt: {Email}", Input.Email);
+                }
+                // ═══════════════════════════════════════════════════════════
+
                 // DEBUG: Log login attempt
                 _logger.LogInformation("Login attempt for email: {Email}", Input.Email);
 
@@ -164,71 +222,8 @@ namespace IT15_Project.Areas.Identity.Pages.Account
                         user.LastLoginAt = DateTime.Now;
                         await _context.SaveChangesAsync();
 
-                        // DEBUG: Get user roles
-                        var userRoles = await _userManager.GetRolesAsync(user);
-                        _logger.LogInformation("User roles: {Roles}", string.Join(", ", userRoles));
-
-                        // SuperAdmin goes to platform dashboard (SaaS management)
-                        if (await _userManager.IsInRoleAsync(user, "SuperAdmin"))
-                        {
-                            _logger.LogInformation("Redirecting SuperAdmin to /superadmin/dashboard");
-                            return Redirect("/superadmin/dashboard");
-                        }
-
-                        // Check if company is active and subscription is valid (tenant users only)
-                        if (user.CompanyId.HasValue)
-                        {
-                            var company = await _signInManager.UserManager.Users
-                                .Where(u => u.Id == user.Id)
-                                .Select(u => u.Company)
-                                .FirstOrDefaultAsync();
-
-                            if (company != null)
-                            {
-                                // Check if company is suspended
-                                if (!company.IsActive)
-                                {
-                                    _logger.LogWarning("Login blocked: Company is suspended for user: {Email}", Input.Email);
-                                    await _signInManager.SignOutAsync();
-                                    ModelState.AddModelError(string.Empty, "Your company account has been suspended. Please contact support.");
-                                    return Page();
-                                }
-
-                                // Check if subscription is expired
-                                if (company.SubscriptionExpiry.HasValue && company.SubscriptionExpiry.Value < DateTime.Now)
-                                {
-                                    _logger.LogWarning("Login blocked: Subscription expired for user: {Email}", Input.Email);
-                                    await _signInManager.SignOutAsync();
-                                    ModelState.AddModelError(string.Empty, "Your company subscription has expired. Please contact your administrator.");
-                                    return Page();
-                                }
-                            }
-                        }
-
-                        // Owner and Admin go to admin dashboard (full system metrics)
-                        if (await _userManager.IsInRoleAsync(user, "Admin") || 
-                            await _userManager.IsInRoleAsync(user, "Owner"))
-                        {
-                            _logger.LogInformation("Redirecting Owner/Admin to /admin/dashboard");
-                            return Redirect("/admin/dashboard");
-                        }
-
-                        // Technician goes to dedicated technician dashboard
-                        if (await _userManager.IsInRoleAsync(user, "Technician"))
-                        {
-                            _logger.LogInformation("Redirecting Technician to /dashboard");
-                            return Redirect("/dashboard");
-                        }
-
-                        // User goes to user dashboard (maintenance requests)
-                        if (await _userManager.IsInRoleAsync(user, "User"))
-                        {
-                            _logger.LogInformation("Redirecting User to /userdashboard");
-                            return Redirect("/userdashboard");
-                        }
-
-                        // DEBUG: No role matched
-                        _logger.LogWarning("No role matched for user: {Email}, Roles: {Roles}", Input.Email, string.Join(", ", userRoles));
+                        // Use centralized role-based redirect
+                        return await RedirectBasedOnRole(user, returnUrl);
                     }
 
                     // Fallback: go to home page
@@ -253,6 +248,226 @@ namespace IT15_Project.Areas.Identity.Pages.Account
 
             // If we got this far, something failed, redisplay form
             return Page();
+        }
+
+        // ============================================================
+        // EXTERNAL LOGIN (Google Sign-In)
+        // ============================================================
+
+        /// <summary>
+        /// Initiates external authentication (Google)
+        /// </summary>
+        public IActionResult OnPostExternalLogin(string provider, string returnUrl = null)
+        {
+            _logger.LogInformation("=== OnPostExternalLogin called ===");
+            _logger.LogInformation("Provider: {Provider}", provider);
+            _logger.LogInformation("ReturnUrl: {ReturnUrl}", returnUrl);
+
+            // Request a redirect to the external login provider
+            var redirectUrl = Url.Page("./Login", pageHandler: "ExternalLoginCallback", values: new { returnUrl });
+            _logger.LogInformation("RedirectUrl: {RedirectUrl}", redirectUrl);
+
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+            _logger.LogInformation("Challenging external provider: {Provider}", provider);
+
+            return new ChallengeResult(provider, properties);
+        }
+
+        /// <summary>
+        /// Callback handler after external authentication
+        /// Creates or links Identity account based on external email
+        /// </summary>
+        public async Task<IActionResult> OnGetExternalLoginCallbackAsync(string returnUrl = null, string remoteError = null)
+        {
+            _logger.LogInformation("=== OnGetExternalLoginCallbackAsync called ===");
+            _logger.LogInformation("ReturnUrl: {ReturnUrl}", returnUrl);
+            _logger.LogInformation("RemoteError: {RemoteError}", remoteError);
+
+            returnUrl = returnUrl ?? Url.Content("~/");
+
+            if (remoteError != null)
+            {
+                ErrorMessage = $"Error from external provider: {remoteError}";
+                _logger.LogError("External provider error: {Error}", remoteError);
+                return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+            }
+
+            // Get external login info from the authentication cookie
+            var info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+            {
+                ErrorMessage = "Error loading external login information.";
+                return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+            }
+
+            // Sign in the user with this external login provider if the user already has a login
+            var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
+            
+            if (result.Succeeded)
+            {
+                _logger.LogInformation("{Name} logged in with {LoginProvider} provider.", info.Principal.Identity.Name, info.LoginProvider);
+                
+                // Update last login timestamp
+                var user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+                if (user != null)
+                {
+                    user.LastLoginAt = DateTime.Now;
+                    await _context.SaveChangesAsync();
+
+                    // Role-based redirect (same logic as local login)
+                    return await RedirectBasedOnRole(user, returnUrl);
+                }
+
+                return LocalRedirect(returnUrl);
+            }
+
+            if (result.IsLockedOut)
+            {
+                return RedirectToPage("./Lockout");
+            }
+            else
+            {
+                // User doesn't have an account yet - create one
+                var email = info.Principal.FindFirstValue(ClaimTypes.Email);
+
+                if (string.IsNullOrEmpty(email))
+                {
+                    ErrorMessage = "Email not provided by external provider.";
+                    return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+                }
+
+                // Check if user already exists with this email (link accounts)
+                var existingUser = await _userManager.FindByEmailAsync(email);
+
+                if (existingUser != null)
+                {
+                    // Link external login to existing account
+                    var addLoginResult = await _userManager.AddLoginAsync(existingUser, info);
+                    if (addLoginResult.Succeeded)
+                    {
+                        _logger.LogInformation("External login linked to existing account: {Email}", email);
+                        await _signInManager.SignInAsync(existingUser, isPersistent: false);
+                        
+                        // Update last login timestamp
+                        existingUser.LastLoginAt = DateTime.Now;
+                        await _context.SaveChangesAsync();
+
+                        return await RedirectBasedOnRole(existingUser, returnUrl);
+                    }
+                    else
+                    {
+                        ErrorMessage = "Failed to link external login to existing account.";
+                        return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+                    }
+                }
+
+                // Create new user account
+                // IMPORTANT: Google users default to lowest role (User)
+                // IMPORTANT: No CompanyId assigned - must be set by admin later
+                var newUser = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true, // Google email is already verified
+                    FullName = info.Principal.FindFirstValue(ClaimTypes.Name),
+                    IsActive = true,
+                    CreatedAt = DateTime.Now,
+                    CompanyId = null // No company assigned - admin must assign later
+                };
+
+                var createResult = await _userManager.CreateAsync(newUser);
+                if (createResult.Succeeded)
+                {
+                    // Add external login
+                    createResult = await _userManager.AddLoginAsync(newUser, info);
+                    if (createResult.Succeeded)
+                    {
+                        // Assign default role: User (lowest privilege)
+                        // SECURITY: Do NOT auto-assign Admin or Owner roles
+                        await _userManager.AddToRoleAsync(newUser, "User");
+
+                        _logger.LogInformation("User created an account using {Name} provider.", info.LoginProvider);
+
+                        await _signInManager.SignInAsync(newUser, isPersistent: false, info.LoginProvider);
+                        
+                        // Update last login timestamp
+                        newUser.LastLoginAt = DateTime.Now;
+                        await _context.SaveChangesAsync();
+
+                        // Redirect to user dashboard (default for new Google users)
+                        return Redirect("/userdashboard");
+                    }
+                }
+
+                // If we got here, account creation failed
+                foreach (var error in createResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                return Page();
+            }
+        }
+
+        /// <summary>
+        /// Role-based redirect helper (reusable for local and external login)
+        /// </summary>
+        private async Task<IActionResult> RedirectBasedOnRole(ApplicationUser user, string returnUrl)
+        {
+            // SuperAdmin goes to platform dashboard
+            if (await _userManager.IsInRoleAsync(user, "SuperAdmin"))
+            {
+                return Redirect("/superadmin/dashboard");
+            }
+
+            // Check company status for tenant users
+            if (user.CompanyId.HasValue)
+            {
+                var company = await _context.Companies.FindAsync(user.CompanyId.Value);
+                if (company != null)
+                {
+                    if (!company.IsActive)
+                    {
+                        await _signInManager.SignOutAsync();
+                        ErrorMessage = "Your company account has been suspended. Please contact support.";
+                        return RedirectToPage("./Login");
+                    }
+
+                    if (company.SubscriptionExpiry.HasValue && company.SubscriptionExpiry.Value < DateTime.Now)
+                    {
+                        await _signInManager.SignOutAsync();
+                        ErrorMessage = "Your company subscription has expired. Please contact your administrator.";
+                        return RedirectToPage("./Login");
+                    }
+                }
+            }
+
+            // Owner and Admin go to admin dashboard
+            if (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Owner"))
+            {
+                return Redirect("/admin/dashboard");
+            }
+
+            // Supervisor goes to supervisor dashboard
+            if (await _userManager.IsInRoleAsync(user, "Supervisor"))
+            {
+                return Redirect("/supervisor/dashboard");
+            }
+
+            // Technician goes to technician dashboard
+            if (await _userManager.IsInRoleAsync(user, "Technician"))
+            {
+                return Redirect("/dashboard");
+            }
+
+            // User goes to user dashboard
+            if (await _userManager.IsInRoleAsync(user, "User"))
+            {
+                return Redirect("/userdashboard");
+            }
+
+            // Fallback
+            return LocalRedirect(returnUrl);
         }
     }
 }

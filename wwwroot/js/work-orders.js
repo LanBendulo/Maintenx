@@ -1517,6 +1517,32 @@
 
 
     // ========================================
+    // ARCHIVE WORK ORDER FUNCTIONALITY
+    // ========================================
+
+    // Archive action click handler
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.action-archive')) {
+            e.preventDefault();
+            const link = e.target.closest('.action-archive');
+            const woId = link.getAttribute('data-wo-id');
+            console.log('Archive button clicked for WO ID:', woId);
+            showArchiveModal(woId);
+        }
+    });
+
+    // Close archive modal handlers
+    document.getElementById('closeArchiveModal')?.addEventListener('click', closeArchiveModal);
+    document.getElementById('cancelArchiveModal')?.addEventListener('click', closeArchiveModal);
+
+    // Archive work order button
+    document.getElementById('saveArchiveForm')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        archiveWorkOrder();
+    });
+
+
+    // ========================================
     // PARTS USED FUNCTIONALITY
     // ========================================
 
@@ -1833,3 +1859,231 @@
     });
 
 })();
+
+
+// ============================================================
+// WORK ORDER ARCHIVE OPERATIONS
+// ============================================================
+
+/**
+ * Shows archive confirmation modal
+ */
+function showArchiveModal(workOrderId) {
+    console.log('showArchiveModal called with ID:', workOrderId);
+    
+    const modal = document.getElementById('woArchiveModal');
+    if (!modal) {
+        console.error('Archive modal not found');
+        return;
+    }
+    
+    console.log('Modal found:', modal);
+
+    // Set work order ID in modal
+    document.getElementById('archive-work-order-id').value = workOrderId;
+    document.getElementById('archive-reason').value = '';
+    
+    // Clear error state
+    const errorDiv = document.getElementById('archive-err-reason');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    console.log('Fetching can-archive status for WO:', workOrderId);
+    
+    // Check if work order can be archived and fetch details
+    fetch(`/admin/work-orders/${workOrderId}/can-archive`)
+        .then(response => {
+            console.log('Can-archive response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Can-archive data:', data);
+            
+            if (!data.canArchive) {
+                console.warn('Cannot archive:', data.message);
+                showToast(data.message, 'error');
+                return;
+            }
+
+            console.log('✅ Can archive - proceeding to open modal');
+
+            // Fetch work order details to populate modal
+            const workOrderRow = document.querySelector(`tr[data-status] a[data-wo-id="${workOrderId}"]`);
+            console.log('Work order row found:', workOrderRow);
+            
+            if (workOrderRow) {
+                const row = workOrderRow.closest('tr');
+                const equipment = row.querySelector('.td-equip')?.textContent || '-';
+                const status = row.querySelector('td:nth-child(6)')?.textContent.trim() || '-';
+                const technician = row.querySelector('.td-staff')?.textContent.trim() || '-';
+                
+                console.log('Populating modal with:', { equipment, status, technician });
+                
+                document.getElementById('archive-equipment').textContent = equipment;
+                document.getElementById('archive-status').textContent = status;
+                document.getElementById('archive-technician').textContent = technician;
+            }
+            
+            // Update modal subtitle
+            document.getElementById('archive-modal-subtitle').textContent = `#WO-${String(workOrderId).padStart(4, '0')}`;
+
+            console.log('About to show modal...');
+            console.log('Modal display before:', modal.style.display);
+            console.log('Modal classes before:', modal.className);
+            
+            // Show modal - add 'open' class for CSS transition
+            modal.classList.add('open');
+            
+            console.log('Modal display after:', modal.style.display);
+            console.log('Modal classes after:', modal.className);
+            console.log('✅ Modal should now be visible');
+        })
+        .catch(error => {
+            console.error('Error checking archive eligibility:', error);
+            showToast('Error checking if work order can be archived', 'error');
+        });
+}
+
+/**
+ * Closes archive modal
+ */
+function closeArchiveModal() {
+    const modal = document.getElementById('woArchiveModal');
+    if (modal) {
+        modal.classList.remove('open');
+    }
+}
+
+/**
+ * Archives a work order
+ */
+function archiveWorkOrder() {
+    console.log('🚀 archiveWorkOrder() called');
+    
+    const workOrderId = document.getElementById('archive-work-order-id').value;
+    const archiveReason = document.getElementById('archive-reason').value.trim();
+    const errorDiv = document.getElementById('archive-err-reason');
+
+    console.log('Work Order ID:', workOrderId);
+    console.log('Archive Reason:', archiveReason);
+
+    if (!archiveReason) {
+        console.warn('❌ Archive reason is empty');
+        if (errorDiv) errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    console.log('✅ Validation passed, sending archive request...');
+
+    const formData = new FormData();
+    formData.append('archiveReason', archiveReason);
+    formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+    console.log('Sending POST to:', `/admin/work-orders/${workOrderId}/archive`);
+
+    fetch(`/admin/work-orders/${workOrderId}/archive`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('Archive response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Archive response data:', data);
+        
+        if (data.success) {
+            console.log('✅ Archive successful!');
+            
+            // Show success toast
+            const toast = document.getElementById('wo-archive-toast');
+            if (toast) {
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+            
+            closeArchiveModal();
+            
+            // Reload page to update work order list
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            console.error('❌ Archive failed:', data.message);
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error archiving work order:', error);
+        showToast('Error archiving work order', 'error');
+    });
+}
+
+/**
+ * Restores an archived work order
+ */
+function restoreWorkOrder(workOrderId) {
+    if (!confirm('Are you sure you want to restore this work order?')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+    fetch(`/admin/work-orders/${workOrderId}/restore`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            // Reload page
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error restoring work order:', error);
+        showToast('Error restoring work order', 'error');
+    });
+}
+
+// ============================================================
+// ARCHIVE EVENT LISTENERS (Must be outside IIFE)
+// ============================================================
+
+// Archive action click handler
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.action-archive')) {
+        e.preventDefault();
+        const link = e.target.closest('.action-archive');
+        const woId = link.getAttribute('data-wo-id');
+        console.log('Archive button clicked for WO ID:', woId);
+        showArchiveModal(woId);
+    }
+});
+
+// Close archive modal handlers
+document.getElementById('closeArchiveModal')?.addEventListener('click', closeArchiveModal);
+document.getElementById('cancelArchiveModal')?.addEventListener('click', closeArchiveModal);
+
+// Archive work order button
+document.getElementById('saveArchiveForm')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    console.log('🔥 Archive confirm button clicked!');
+    archiveWorkOrder();
+});
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const archiveModal = document.getElementById('woArchiveModal');
+    if (event.target == archiveModal) {
+        closeArchiveModal();
+    }
+}

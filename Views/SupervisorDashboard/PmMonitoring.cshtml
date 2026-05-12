@@ -1,0 +1,169 @@
+@model List<IT15_Project.Models.PreventiveSchedule>
+@{
+    ViewData["Title"] = "PM Monitoring";
+    ViewData["Active"] = "PmMonitoring";
+    Layout = "/Views/Shared/_SupervisorLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>PM Monitoring</h1>
+        <p>Monitor preventive maintenance schedules and work order generation</p>
+    </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="wo-stats">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count ?? 0)</span>
+        </div>
+        <div class="stat-value">@(Model?.Count ?? 0)</div>
+        <div class="stat-label">Total Schedules</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend up">↑ @(Model?.Count(s => s.IsActive) ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@(Model?.Count(s => s.IsActive) ?? 0)</div>
+        <div class="stat-label">Active Schedules</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <span class="stat-trend warn">● @(Model?.Count(s => s.IsActive && s.NextDueDate <= DateTime.Today.AddDays(7)) ?? 0)</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@(Model?.Count(s => s.IsActive && s.NextDueDate <= DateTime.Today.AddDays(7)) ?? 0)</div>
+        <div class="stat-label">Due This Week</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="pm-search" placeholder="Search title, asset…" />
+        </div>
+        <select class="filter-select" id="filter-status" onchange="window.location.href='/supervisor/pm-monitoring?filter=' + this.value">
+            <option value="active" selected="@(ViewBag.Filter == "active")">Active</option>
+            <option value="inactive" selected="@(ViewBag.Filter == "inactive")">Inactive</option>
+            <option value="all" selected="@(ViewBag.Filter == "all")">All</option>
+        </select>
+        <button class="filter-reset" onclick="window.location.href='/supervisor/pm-monitoring'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- SCHEDULES TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>Maintenance Schedules</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@(Model?.Count ?? 0)</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="pm-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Asset</th>
+                    <th>Frequency</th>
+                    <th>Next Due</th>
+                    <th>Last Completed</th>
+                    <th>Default Technician</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="pm-tbody">
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var schedule in Model)
+                    {
+                        var statusClass = schedule.IsActive ? "done" : "cancelled";
+                        var daysUntilDue = (schedule.NextDueDate - DateTime.Today).Days;
+                        var isDueClass = daysUntilDue <= 0 ? "overdue" : daysUntilDue <= 7 ? "due-soon" : "";
+                        
+                        <tr data-status="@statusClass" data-due-class="@isDueClass">
+                            <td class="td-id">@schedule.Title</td>
+                            <td class="td-equip">@(schedule.Asset?.AssetName ?? "N/A")</td>
+                            <td style="font-size:13px;color:var(--mx-muted)">Every @schedule.FrequencyDays days</td>
+                            <td style="font-size:12.5px;">
+                                @if (daysUntilDue <= 0)
+                                {
+                                    <span style="color:#EF4444;font-weight:600;">@schedule.NextDueDate.ToString("MMM dd, yyyy") (Overdue)</span>
+                                }
+                                else if (daysUntilDue <= 7)
+                                {
+                                    <span style="color:#F59E0B;font-weight:600;">@schedule.NextDueDate.ToString("MMM dd, yyyy") (@daysUntilDue days)</span>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);">@schedule.NextDueDate.ToString("MMM dd, yyyy")</span>
+                                }
+                            </td>
+                            <td style="font-size:12.5px;color:var(--mx-muted)">@(schedule.LastCompletedDate?.ToString("MMM dd, yyyy") ?? "Never")</td>
+                            <td>
+                                @if (schedule.DefaultTechnician != null)
+                                {
+                                    <div class="td-staff">
+                                        <div class="td-avatar">@($"{schedule.DefaultTechnician.FirstName?.FirstOrDefault()}{schedule.DefaultTechnician.LastName?.FirstOrDefault()}")</div>
+                                        @schedule.DefaultTechnician.FullName
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);font-size:13px;">Unassigned</span>
+                                }
+                            </td>
+                            <td><span class="badge badge-@statusClass">@(schedule.IsActive ? "Active" : "Inactive")</span></td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" style="text-align:center;padding:40px;color:var(--mx-muted);">
+                            No preventive maintenance schedules found.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// Simple client-side search
+document.getElementById('pm-search')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#pm-tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.querySelector('#row-count strong').textContent = visibleCount;
+});
+</script>
+}

@@ -1,0 +1,249 @@
+@model IEnumerable<IT15_Project.Models.WorkOrder>
+
+@{
+    ViewData["Title"] = "Work Orders Oversight";
+    ViewData["Active"] = "WorkOrders";
+    Layout = "~/Views/Shared/_SupervisorLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+<!-- SUMMARY CARDS -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 3.93M12 20v2M12 2v2"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.Count()</span>
+        </div>
+        <div class="stat-value">@Model.Count()</div>
+        <div class="stat-label">Total Work Orders</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <span class="stat-trend warn">● @Model.Count(w => w.Status == "In Progress" || w.Status == "Pending")</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@Model.Count(w => w.Status == "In Progress" || w.Status == "Pending")</div>
+        <div class="stat-label">Active / In Progress</div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @Model.Count(w => w.Status == "Completed")</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-green)">@Model.Count(w => w.Status == "Completed")</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="margin-bottom:20px;padding:18px 22px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+        <div class="filter-search" style="max-width:300px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="wo-search" placeholder="Search ID, equipment, technician…" />
+        </div>
+        <select class="filter-select" id="filter-status">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="inprog">In Progress</option>
+            <option value="done">Completed</option>
+            <option value="cancelled">Cancelled</option>
+        </select>
+        <select class="filter-select" id="filter-priority">
+            <option value="">All Priority</option>
+            <option value="high">High</option>
+            <option value="med">Medium</option>
+            <option value="low">Low</option>
+        </select>
+        <button class="filter-reset" id="reset-filters">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Reset
+        </button>
+    </div>
+</div>
+
+<!-- WORK ORDERS TABLE -->
+<div class="card">
+    <div class="section-header" style="margin-bottom:8px;">
+        <h2>All Work Orders</h2>
+        <span id="row-count" class="table-meta">Showing <strong>@Model.Count()</strong> results</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="mx-table" id="wo-table">
+            <thead>
+                <tr>
+                    <th>WO ID</th>
+                    <th>Equipment / Asset</th>
+                    <th>Description</th>
+                    <th>Technician</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="wo-tbody">
+                @foreach (var wo in Model.OrderByDescending(w => w.DateCreated))
+                {
+                    var statusClass = wo.Status?.ToLower() switch
+                    {
+                        "pending" => "pending",
+                        "in progress" => "inprog",
+                        "completed" => "done",
+                        "cancelled" => "cancelled",
+                        _ => "pending"
+                    };
+                    
+                    var priorityClass = wo.Priority?.ToLower() switch
+                    {
+                        "high" => "high",
+                        "medium" => "med",
+                        "low" => "low",
+                        _ => "med"
+                    };
+                    
+                    var techInitials = wo.AssignedToPersonnel != null 
+                        ? $"{wo.AssignedToPersonnel.FirstName?.FirstOrDefault()}{wo.AssignedToPersonnel.LastName?.FirstOrDefault()}"
+                        : "NA";
+                    
+                    var techName = wo.AssignedToPersonnel?.FullName ?? "Unassigned";
+                    
+                    <tr data-status="@statusClass" data-priority="@priorityClass">
+                        <td class="td-id">#WO-@wo.WorkOrderId.ToString("D4")</td>
+                        <td class="td-equip">@(wo.Asset?.AssetName ?? "N/A")</td>
+                        <td style="color:var(--mx-muted);font-size:13px;max-width:300px;">
+                            @(wo.Description?.Length > 60 ? wo.Description.Substring(0, 60) + "..." : wo.Description)
+                        </td>
+                        <td>
+                            <div class="td-staff">
+                                <div class="td-avatar">@techInitials</div> @techName
+                            </div>
+                        </td>
+                        <td><span class="badge-priority-@priorityClass">@wo.Priority</span></td>
+                        <td>
+                            @if (wo.Status == "Pending")
+                            {
+                                <span class="badge badge-pending">Pending</span>
+                            }
+                            else if (wo.Status == "In Progress")
+                            {
+                                <span class="badge badge-inprog">In Progress</span>
+                            }
+                            else if (wo.Status == "Completed")
+                            {
+                                <span class="badge badge-done">Completed</span>
+                            }
+                            else if (wo.Status == "Cancelled")
+                            {
+                                <span class="badge badge-cancelled">Cancelled</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-pending">@wo.Status</span>
+                            }
+                        </td>
+                        <td style="font-size:12.5px;color:var(--mx-muted)">@(wo.DateCreated?.ToString("MMM dd, yyyy") ?? "-")</td>
+                        <td style="text-align:right;">
+                            <a href="/supervisor/work-order/@wo.WorkOrderId" class="tbl-btn" title="View Details">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (!Model.Any())
+    {
+        <div style="padding:40px;text-align:center;color:var(--mx-muted);">
+            <p>No work orders found.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function() {
+    // Search functionality
+    $('#wo-search').on('keyup', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        filterTable();
+    });
+    
+    // Status filter
+    $('#filter-status').on('change', function() {
+        filterTable();
+    });
+    
+    // Priority filter
+    $('#filter-priority').on('change', function() {
+        filterTable();
+    });
+    
+    // Reset filters
+    $('#reset-filters').on('click', function() {
+        $('#wo-search').val('');
+        $('#filter-status').val('');
+        $('#filter-priority').val('');
+        filterTable();
+    });
+    
+    function filterTable() {
+        const searchTerm = $('#wo-search').val().toLowerCase();
+        const statusFilter = $('#filter-status').val();
+        const priorityFilter = $('#filter-priority').val();
+        
+        let visibleCount = 0;
+        
+        $('#wo-tbody tr').each(function() {
+            const $row = $(this);
+            const text = $row.text().toLowerCase();
+            const status = $row.data('status');
+            const priority = $row.data('priority');
+            
+            let show = true;
+            
+            // Search filter
+            if (searchTerm && !text.includes(searchTerm)) {
+                show = false;
+            }
+            
+            // Status filter
+            if (statusFilter && status !== statusFilter) {
+                show = false;
+            }
+            
+            // Priority filter
+            if (priorityFilter && priority !== priorityFilter) {
+                show = false;
+            }
+            
+            if (show) {
+                $row.show();
+                visibleCount++;
+            } else {
+                $row.hide();
+            }
+        });
+        
+        $('#row-count strong').text(visibleCount);
+    }
+});
+</script>
+}

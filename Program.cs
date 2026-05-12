@@ -1,8 +1,12 @@
+using IT15_Project.Configuration;
 using IT15_Project.Data;
 using IT15_Project.Models;
 using IT15_Project.Services;
+using IT15_Project.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +46,93 @@ builder.Services.AddScoped<AssetStatusService>();
 
 // Register PreventiveMaintenanceGenerationService for automatic PM work order generation
 builder.Services.AddScoped<PreventiveMaintenanceGenerationService>();
+
+// Register PMGovernanceService for PM lifecycle governance and duplicate prevention
+builder.Services.AddScoped<IPMGovernanceService, PMGovernanceService>();
+
+// Register ArchiveService for soft archival of operational records
+builder.Services.AddScoped<IT15_Project.Services.Archiving.IArchiveService, 
+    IT15_Project.Services.Archiving.ArchiveService>();
+
+// Register PartsService for staged parts usage workflow
+builder.Services.AddScoped<IT15_Project.Services.Parts.IPartsService, 
+    IT15_Project.Services.Parts.PartsService>();
+
+// Register SubscriptionService for SaaS subscription management and enforcement
+builder.Services.AddScoped<SubscriptionService>();
+
+// ============================================================
+// EMAIL INFRASTRUCTURE
+// ============================================================
+// Register EmailSettings from configuration
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
+// Register Email Template Service for reusable HTML templates
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+
+// Register EmailService for SMTP functionality
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Register Email Confirmation Service for registration flow
+builder.Services.AddScoped<IEmailConfirmationService, EmailConfirmationService>();
+// ============================================================
+
+// ============================================================
+// SECURITY & ANTI-ABUSE SERVICES
+// ============================================================
+// Register Turnstile Settings from configuration
+builder.Services.Configure<TurnstileSettings>(
+    builder.Configuration.GetSection("Turnstile"));
+
+// Register Turnstile Validation Service for CAPTCHA protection
+builder.Services.AddScoped<IT15_Project.Services.Security.ITurnstileValidationService, 
+    IT15_Project.Services.Security.TurnstileValidationService>();
+
+// Register HttpClient for Turnstile API calls
+builder.Services.AddHttpClient();
+
+// Add Rate Limiting middleware for anti-abuse protection
+builder.Services.AddRateLimiter(options =>
+{
+    // Login endpoint rate limiting
+    options.AddFixedWindowLimiter("login", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:Login:PermitLimit", 5);
+        limiterOptions.Window = TimeSpan.FromSeconds(
+            builder.Configuration.GetValue<int>("RateLimiting:Login:WindowSeconds", 60));
+        limiterOptions.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0; // No queueing, reject immediately
+    });
+
+    // Forgot Password endpoint rate limiting
+    options.AddFixedWindowLimiter("forgotPassword", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:ForgotPassword:PermitLimit", 3);
+        limiterOptions.Window = TimeSpan.FromSeconds(
+            builder.Configuration.GetValue<int>("RateLimiting:ForgotPassword:WindowSeconds", 300));
+        limiterOptions.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
+
+    // Registration endpoint rate limiting
+    options.AddFixedWindowLimiter("registration", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:Registration:PermitLimit", 3);
+        limiterOptions.Window = TimeSpan.FromSeconds(
+            builder.Configuration.GetValue<int>("RateLimiting:Registration:WindowSeconds", 3600));
+        limiterOptions.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
+
+    // Global rejection response
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync(
+            "Too many requests. Please try again later.", cancellationToken);
+    };
+});
 // ============================================================
 
 // Identity with Roles support using ApplicationUser
@@ -51,6 +142,32 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 })
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// ============================================================
+// EXTERNAL AUTHENTICATION PROVIDERS
+// ============================================================
+// Add Google OAuth authentication (optional - preserves local login)
+builder.Services.AddAuthentication()
+    .AddGoogle(googleOptions =>
+    {
+        // Load Google OAuth credentials from configuration
+        // Development: appsettings.Development.json or user secrets
+        // Production: Environment variables or appsettings.Production.json
+        googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
+        googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+        
+        // Callback path for OAuth redirect (default: /signin-google)
+        // Must match Google Cloud Console authorized redirect URI
+        googleOptions.CallbackPath = "/signin-google";
+        
+        // Request email and profile scopes
+        googleOptions.Scope.Add("email");
+        googleOptions.Scope.Add("profile");
+        
+        // Save tokens for future API calls (optional)
+        googleOptions.SaveTokens = true;
+    });
+// ============================================================
 
 builder.Services.AddControllersWithViews();
 
@@ -167,6 +284,10 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+// Enable rate limiting middleware
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

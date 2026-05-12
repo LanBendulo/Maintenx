@@ -233,32 +233,174 @@ namespace IT15_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CreateEditUserViewModel model)
         {
+            // Additional server-side validation
+            if (string.IsNullOrWhiteSpace(model.FullName))
+            {
+                ModelState.AddModelError(nameof(model.FullName), "Full name cannot be empty or whitespace");
+            }
+
+            if (string.IsNullOrWhiteSpace(model.Email))
+            {
+                ModelState.AddModelError(nameof(model.Email), "Email cannot be empty or whitespace");
+            }
+            else
+            {
+                // Normalize email
+                model.Email = model.Email.Trim().ToLowerInvariant();
+                
+                // Additional email validation
+                if (!model.Email.Contains("@") || !model.Email.Contains("."))
+                {
+                    ModelState.AddModelError(nameof(model.Email), "Please enter a valid email address");
+                }
+            }
+
+            // Validate phone number format if provided
+            if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+            {
+                model.PhoneNumber = model.PhoneNumber.Trim();
+                
+                // Remove common formatting characters for validation
+                var digitsOnly = new string(model.PhoneNumber.Where(char.IsDigit).ToArray());
+                if (digitsOnly.Length < 7 || digitsOnly.Length > 15)
+                {
+                    ModelState.AddModelError(nameof(model.PhoneNumber), "Phone number must contain between 7 and 15 digits");
+                }
+            }
+
+            // Validate role is not empty
+            if (string.IsNullOrWhiteSpace(model.Role))
+            {
+                ModelState.AddModelError(nameof(model.Role), "Please select a role");
+            }
+
+            // Validate password if provided
+            if (!string.IsNullOrWhiteSpace(model.Password))
+            {
+                if (model.Password.Length < 6)
+                {
+                    ModelState.AddModelError(nameof(model.Password), "Password must be at least 6 characters");
+                }
+                
+                if (model.Password != model.ConfirmPassword)
+                {
+                    ModelState.AddModelError(nameof(model.ConfirmPassword), "Password and confirmation password do not match");
+                }
+
+                // Check password strength
+                bool hasUpper = model.Password.Any(char.IsUpper);
+                bool hasLower = model.Password.Any(char.IsLower);
+                bool hasDigit = model.Password.Any(char.IsDigit);
+                bool hasSpecial = model.Password.Any(c => !char.IsLetterOrDigit(c));
+
+                if (!hasUpper || !hasLower || !hasDigit || !hasSpecial)
+                {
+                    ModelState.AddModelError(nameof(model.Password), 
+                        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character");
+                }
+            }
+
             if (!ModelState.IsValid)
             {
+                // Reload dropdown data
+                var currentUser = await _userManager.GetUserAsync(User);
+                var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+                var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                model.AvailablePersonnel = await _context.Personnel
+                    .AsNoTracking()
+                    .Where(p => p.CompanyId == companyId && p.UserId == null)
+                    .Select(p => new PersonnelOptionDto
+                    {
+                        PersonnelId = p.PersonnelId,
+                        FullName = $"{p.FirstName} {p.LastName}",
+                        Role = p.Role,
+                        HasUserAccount = false
+                    })
+                    .ToListAsync();
+                
                 return View(model);
             }
 
             try
             {
                 var currentUser = await _userManager.GetUserAsync(User);
-                var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+                if (currentUser == null)
+                {
+                    _logger.LogError("Current user not found during user creation");
+                    ModelState.AddModelError("", "Unable to identify current user. Please log in again.");
+                    return View(model);
+                }
+
+                var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
                 var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
 
                 // Validate role assignment permission
                 if (!CanAssignRole(currentUserRole, model.Role))
                 {
-                    ModelState.AddModelError("", $"You do not have permission to assign the {model.Role} role");
+                    _logger.LogWarning("User {Email} attempted to assign unauthorized role {Role}", 
+                        currentUser.Email, model.Role);
+                    ModelState.AddModelError("Role", $"You do not have permission to assign the {model.Role} role");
+                    
+                    // Reload dropdown data
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
                     return View(model);
                 }
 
                 var companyId = _tenantService.GetCurrentCompanyId();
+                if (companyId <= 0)
+                {
+                    _logger.LogError("Invalid company ID during user creation: {CompanyId}", companyId);
+                    ModelState.AddModelError("", "Unable to determine your company. Please contact support.");
+                    return View(model);
+                }
 
                 // Check if email already exists
                 var existingUser = await _userManager.FindByEmailAsync(model.Email);
                 if (existingUser != null)
                 {
-                    ModelState.AddModelError("Email", "A user with this email already exists");
+                    _logger.LogWarning("Attempted to create user with existing email: {Email}", model.Email);
+                    ModelState.AddModelError("Email", "A user with this email address already exists in the system");
+                    
+                    // Reload dropdown data
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
                     return View(model);
+                }
+
+                // Validate personnel link if provided
+                if (model.LinkedPersonnelId.HasValue)
+                {
+                    var personnel = await _context.Personnel
+                        .FirstOrDefaultAsync(p => p.PersonnelId == model.LinkedPersonnelId.Value && 
+                                                 p.CompanyId == companyId);
+                    
+                    if (personnel == null)
+                    {
+                        _logger.LogWarning("Invalid personnel ID {PersonnelId} for company {CompanyId}", 
+                            model.LinkedPersonnelId.Value, companyId);
+                        ModelState.AddModelError("LinkedPersonnelId", "Selected personnel record not found or does not belong to your company");
+                        
+                        // Reload dropdown data
+                        model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                        model.AvailablePersonnel = await LoadAvailablePersonnel();
+                        return View(model);
+                    }
+
+                    if (!string.IsNullOrEmpty(personnel.UserId))
+                    {
+                        _logger.LogWarning("Personnel {PersonnelId} already linked to user {UserId}", 
+                            personnel.PersonnelId, personnel.UserId);
+                        ModelState.AddModelError("LinkedPersonnelId", "This personnel record is already linked to another user account");
+                        
+                        // Reload dropdown data
+                        model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                        model.AvailablePersonnel = await LoadAvailablePersonnel();
+                        return View(model);
+                    }
                 }
 
                 // Create user
@@ -266,8 +408,8 @@ namespace IT15_Project.Controllers
                 {
                     UserName = model.Email,
                     Email = model.Email,
-                    FullName = model.FullName,
-                    PhoneNumber = model.PhoneNumber,
+                    FullName = model.FullName.Trim(),
+                    PhoneNumber = model.PhoneNumber?.Trim(),
                     CompanyId = companyId,
                     IsActive = model.IsActive,
                     EmailConfirmed = true, // Auto-confirm for admin-created accounts
@@ -275,87 +417,266 @@ namespace IT15_Project.Controllers
                 };
 
                 var password = model.Password ?? GenerateTemporaryPassword();
+                
+                // Validate password meets Identity requirements
+                var passwordValidator = new PasswordValidator<ApplicationUser>();
+                var passwordValidationResult = await passwordValidator.ValidateAsync(_userManager, user, password);
+                
+                if (!passwordValidationResult.Succeeded)
+                {
+                    _logger.LogWarning("Password validation failed for new user {Email}", model.Email);
+                    foreach (var error in passwordValidationResult.Errors)
+                    {
+                        ModelState.AddModelError("Password", error.Description);
+                    }
+                    
+                    // Reload dropdown data
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
+                    return View(model);
+                }
+
                 var result = await _userManager.CreateAsync(user, password);
 
                 if (!result.Succeeded)
                 {
                     _logger.LogError("User creation failed for {Email}. Errors: {Errors}", 
                         model.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+                    
                     foreach (var error in result.Errors)
                     {
-                        ModelState.AddModelError("", error.Description);
+                        if (error.Code.Contains("Email"))
+                        {
+                            ModelState.AddModelError("Email", error.Description);
+                        }
+                        else if (error.Code.Contains("Password"))
+                        {
+                            ModelState.AddModelError("Password", error.Description);
+                        }
+                        else if (error.Code.Contains("UserName"))
+                        {
+                            ModelState.AddModelError("Email", error.Description);
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("", error.Description);
+                        }
                     }
+                    
+                    // Reload dropdown data
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
                     return View(model);
                 }
 
                 _logger.LogInformation("User created successfully: {Email}, Id: {UserId}", user.Email, user.Id);
 
                 // Assign role
-                var roleResult = await _userManager.AddToRoleAsync(user, model.Role);
-                if (!roleResult.Succeeded)
+                try
                 {
-                    _logger.LogError("Role assignment failed for {Email}. Role: {Role}. Errors: {Errors}", 
-                        user.Email, model.Role, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                    var roleResult = await _userManager.AddToRoleAsync(user, model.Role);
+                    if (!roleResult.Succeeded)
+                    {
+                        _logger.LogError("Role assignment failed for {Email}. Role: {Role}. Errors: {Errors}", 
+                            user.Email, model.Role, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                        
+                        // Delete the user if role assignment fails
+                        await _userManager.DeleteAsync(user);
+                        
+                        ModelState.AddModelError("Role", $"Failed to assign role: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                        
+                        // Reload dropdown data
+                        model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                        model.AvailablePersonnel = await LoadAvailablePersonnel();
+                        return View(model);
+                    }
+
+                    _logger.LogInformation("Role assigned successfully: {Email} -> {Role}", user.Email, model.Role);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception during role assignment for {Email}", user.Email);
                     
-                    // Delete the user if role assignment fails
-                    await _userManager.DeleteAsync(user);
-                    ModelState.AddModelError("", $"Failed to assign role: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                    // Cleanup: Delete the user
+                    try
+                    {
+                        await _userManager.DeleteAsync(user);
+                        _logger.LogInformation("Cleaned up user {Email} after role assignment failure", user.Email);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        _logger.LogError(cleanupEx, "Failed to cleanup user {Email} after role assignment failure", user.Email);
+                    }
+                    
+                    ModelState.AddModelError("", "An error occurred while assigning the user role. Please try again.");
+                    
+                    // Reload dropdown data
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
                     return View(model);
                 }
-
-                _logger.LogInformation("Role assigned successfully: {Email} -> {Role}", user.Email, model.Role);
 
                 // Link to personnel if specified
                 if (model.LinkedPersonnelId.HasValue)
                 {
-                    var personnel = await _context.Personnel.FindAsync(model.LinkedPersonnelId.Value);
-                    if (personnel != null && personnel.CompanyId == companyId)
+                    try
                     {
-                        personnel.UserId = user.Id;
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("Personnel linked: {Email} -> PersonnelId: {PersonnelId}", user.Email, personnel.PersonnelId);
+                        var personnel = await _context.Personnel.FindAsync(model.LinkedPersonnelId.Value);
+                        if (personnel != null && personnel.CompanyId == companyId)
+                        {
+                            personnel.UserId = user.Id;
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("Personnel linked: {Email} -> PersonnelId: {PersonnelId}", 
+                                user.Email, personnel.PersonnelId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Personnel {PersonnelId} not found or company mismatch during linking", 
+                                model.LinkedPersonnelId.Value);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error linking personnel {PersonnelId} to user {Email}", 
+                            model.LinkedPersonnelId.Value, user.Email);
+                        // Continue - don't fail the entire operation for personnel link failure
                     }
                 }
                 else if (model.Role == "Technician" || model.Role == "Supervisor")
                 {
                     // Auto-create Personnel record for Technician/Supervisor roles if not linked
-                    var nameParts = model.FullName.Split(' ', 2);
-                    var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
-                    var lastName = nameParts.Length > 1 ? nameParts[1] : "";
-
-                    var personnel = new Personnel
+                    try
                     {
-                        CompanyId = companyId,
-                        UserId = user.Id,
-                        FirstName = firstName,
-                        LastName = lastName,
-                        Email = model.Email,
-                        PhoneNumber = model.PhoneNumber,
-                        Position = model.Role,
-                        Role = model.Role,
-                        EmploymentType = "FullTime",
-                        Status = "Active",
-                        HireDate = DateTime.Now,
-                        IsActive = true,
-                        CreatedAt = DateTime.Now
-                    };
+                        var nameParts = model.FullName.Trim().Split(' ', 2);
+                        var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
+                        var lastName = nameParts.Length > 1 ? nameParts[1] : "";
 
-                    _context.Personnel.Add(personnel);
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Auto-created Personnel record for {Role}: {Email} -> PersonnelId: {PersonnelId}", 
-                        model.Role, user.Email, personnel.PersonnelId);
+                        var personnel = new Personnel
+                        {
+                            CompanyId = companyId,
+                            UserId = user.Id,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Email = model.Email,
+                            PhoneNumber = model.PhoneNumber,
+                            Position = model.Role,
+                            Role = model.Role,
+                            EmploymentType = "FullTime",
+                            Status = "Active",
+                            HireDate = DateTime.Now,
+                            IsActive = true,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        _context.Personnel.Add(personnel);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Auto-created Personnel record for {Role}: {Email} -> PersonnelId: {PersonnelId}", 
+                            model.Role, user.Email, personnel.PersonnelId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error auto-creating personnel record for {Email}", user.Email);
+                        // Continue - don't fail the entire operation for personnel creation failure
+                    }
                 }
 
-                _logger.LogInformation("User {Email} created by {AdminEmail}", user.Email, currentUser!.Email);
+                _logger.LogInformation("User {Email} created successfully by {AdminEmail}", user.Email, currentUser.Email);
 
-                TempData["SuccessMessage"] = $"User {user.Email} created successfully. Temporary password: {password}";
+                TempData["SuccessMessage"] = $"User {user.Email} created successfully. " + 
+                    (string.IsNullOrWhiteSpace(model.Password) ? $"Temporary password: {password}" : "");
+                
                 return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Database error creating user {Email}", model.Email);
+                ModelState.AddModelError("", "A database error occurred. The email or phone number may already be in use.");
+                
+                // Reload dropdown data
+                try
+                {
+                    var currentUser = await _userManager.GetUserAsync(User);
+                    var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+                    var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error reloading dropdown data after DbUpdateException");
+                }
+                
+                return View(model);
+            }
+            catch (InvalidOperationException invEx)
+            {
+                _logger.LogError(invEx, "Invalid operation while creating user {Email}", model.Email);
+                ModelState.AddModelError("", "An invalid operation occurred. Please check your input and try again.");
+                
+                // Reload dropdown data
+                try
+                {
+                    var currentUser = await _userManager.GetUserAsync(User);
+                    var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+                    var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error reloading dropdown data after InvalidOperationException");
+                }
+                
+                return View(model);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating user");
-                ModelState.AddModelError("", "An error occurred while creating the user");
+                _logger.LogError(ex, "Unexpected error creating user {Email}", model.Email);
+                ModelState.AddModelError("", "An unexpected error occurred while creating the user. Please try again or contact support if the problem persists.");
+                
+                // Reload dropdown data
+                try
+                {
+                    var currentUser = await _userManager.GetUserAsync(User);
+                    var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+                    var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+                    model.AvailableRoles = GetAvailableRolesForUser(currentUserRole);
+                    model.AvailablePersonnel = await LoadAvailablePersonnel();
+                }
+                catch (Exception reloadEx)
+                {
+                    _logger.LogError(reloadEx, "Error reloading dropdown data after exception");
+                }
+                
                 return View(model);
+            }
+        }
+
+        /// <summary>
+        /// Helper method to load available personnel for dropdown
+        /// </summary>
+        private async Task<List<PersonnelOptionDto>> LoadAvailablePersonnel()
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+                
+                return await _context.Personnel
+                    .AsNoTracking()
+                    .Where(p => p.CompanyId == companyId && p.UserId == null)
+                    .Select(p => new PersonnelOptionDto
+                    {
+                        PersonnelId = p.PersonnelId,
+                        FullName = $"{p.FirstName} {p.LastName}",
+                        Role = p.Role,
+                        HasUserAccount = false
+                    })
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading available personnel");
+                return new List<PersonnelOptionDto>();
             }
         }
 

@@ -1,0 +1,35 @@
+@using IT15_Project.Services
+@inject SubscriptionService SubscriptionService
+@inject IT15_Project.Services.ITenantService TenantService
+
+@{
+    var companyId = TenantService.GetCurrentCompanyIdNullable();
+    if (companyId.HasValue)
+    {
+        var status = await SubscriptionService.GetSubscriptionStatusAsync(companyId.Value);
+        
+        if (status != null && (status.Severity == "warning" || status.Severity == "error"))
+        {
+            var bgColor = status.Severity == "error" ? "rgba(239,68,68,.10)" : "rgba(244,121,32,.10)";
+            var borderColor = status.Severity == "error" ? "var(--mx-red)" : "var(--mx-orange)";
+            var textColor = status.Severity == "error" ? "var(--mx-red)" : "var(--mx-orange)";
+            var icon = status.Severity == "error" ? "⚠" : "⏰";
+            
+            <div style="background:@bgColor;border-left:4px solid @borderColor;padding:14px 20px;margin-bottom:20px;border-radius:8px;display:flex;align-items:center;gap:12px;">
+                <div style="font-size:24px;">@icon</div>
+                <div style="flex:1;">
+                    <div style="font-size:14px;font-weight:700;color:@textColor;margin-bottom:2px;">
+                        @(status.IsTrial ? "Trial Subscription" : "Subscription") @(status.Severity == "error" ? "Expired" : "Expiring Soon")
+                    </div>
+                    <div style="font-size:13px;color:var(--mx-muted);">
+                        @status.Message. Please contact your administrator to renew.
+                    </div>
+                </div>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a href="/dashboard" class="btn-secondary" style="white-space:nowrap;">Manage Subscription</a>
+                }
+            </div>
+        }
+    }
+}

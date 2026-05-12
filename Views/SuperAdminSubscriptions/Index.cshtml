@@ -1,0 +1,583 @@
+@model IEnumerable<IT15_Project.Models.CompanySubscription>
+
+@{
+    ViewData["Title"] = "Company Subscriptions";
+    ViewData["Active"] = "Subscriptions";
+    Layout = "~/Views/Shared/_SuperAdminLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/maintenx-workorders.css" asp-append-version="true" />
+
+@{
+    var activeCount = Model.Count(s => s.IsActive && s.EndDate > DateTime.Now);
+    var trialCount = Model.Count(s => s.IsTrial && s.IsActive);
+    var expiredCount = Model.Count(s => s.EndDate <= DateTime.Now);
+    var expiringCount = Model.Count(s => s.IsActive && s.EndDate > DateTime.Now && s.EndDate <= DateTime.Now.AddDays(30));
+}
+
+<!-- ══════════════════════════════════════
+     ROW 1 — SUMMARY CARDS
+════════════════════════════════════════ -->
+<div class="stats-grid">
+    <div class="stat-card navy">
+        <div class="stat-top">
+            <div class="stat-icon navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <span class="stat-trend up">↑ @activeCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-navy)">@activeCount</div>
+        <div class="stat-label">Active Subscriptions</div>
+    </div>
+
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+            </div>
+            <span class="stat-trend">@trialCount</span>
+        </div>
+        <div class="stat-value">@trialCount</div>
+        <div class="stat-label">Trial Subscriptions</div>
+    </div>
+
+    <div class="stat-card orange">
+        <div class="stat-top">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <span class="stat-trend down">⚠ @expiringCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-orange)">@expiringCount</div>
+        <div class="stat-label">Expiring Soon (30d)</div>
+    </div>
+
+    <div class="stat-card red">
+        <div class="stat-top">
+            <div class="stat-icon red">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+            </div>
+            <span class="stat-trend down">↓ @expiredCount</span>
+        </div>
+        <div class="stat-value" style="color:var(--mx-red)">@expiredCount</div>
+        <div class="stat-label">Expired</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════ -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Company Subscriptions</h1>
+        <p>Manage tenant subscriptions and billing lifecycle</p>
+    </div>
+    <button class="btn-primary-mx" onclick="openAssignModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Assign Subscription
+    </button>
+</div>
+
+<!-- ══════════════════════════════════════
+     SUBSCRIPTIONS TABLE
+════════════════════════════════════════ -->
+@if (!Model.Any())
+{
+    <div class="card">
+        <div style="padding:80px 20px;text-align:center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64" style="color:var(--mx-muted);margin:0 auto 20px;">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>
+            </svg>
+            <h3 style="font-size:18px;font-weight:700;color:var(--mx-txt);margin-bottom:8px;">No Subscriptions Found</h3>
+            <p style="color:var(--mx-muted);font-size:14px;margin-bottom:24px;">Assign subscriptions to companies to get started.</p>
+            <button class="btn-primary-mx" onclick="openAssignModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Assign First Subscription
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="section-header" style="margin-bottom:8px;">
+            <h2>All Subscriptions</h2>
+            <span class="table-meta">Showing <strong>@Model.Count()</strong> subscriptions</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="mx-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Plan</th>
+                        <th>Status</th>
+                        <th>Start Date</th>
+                        <th>Expiration</th>
+                        <th>Days Left</th>
+                        <th>Payment</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sub in Model.OrderByDescending(s => s.CreatedAt))
+                    {
+                        var daysLeft = (sub.EndDate - DateTime.Now).Days;
+                        var isExpired = sub.EndDate <= DateTime.Now;
+                        var isExpiring = daysLeft <= 30 && daysLeft > 0;
+                        var statusColor = isExpired ? "var(--mx-red)" : isExpiring ? "var(--mx-orange)" : sub.IsActive ? "var(--mx-green)" : "var(--mx-muted)";
+                        var statusBg = isExpired ? "rgba(239,68,68,.10)" : isExpiring ? "rgba(244,121,32,.10)" : sub.IsActive ? "rgba(34,197,94,.10)" : "rgba(148,163,184,.10)";
+                        var statusText = isExpired ? "Expired" : sub.IsActive ? "Active" : "Inactive";
+                        
+                        var paymentColor = sub.PaymentStatus == "Paid" ? "var(--mx-green)" : 
+                                          sub.PaymentStatus == "Failed" ? "var(--mx-red)" : 
+                                          sub.PaymentStatus == "Cancelled" ? "var(--mx-muted)" : "var(--mx-orange)";
+                        var paymentBg = sub.PaymentStatus == "Paid" ? "rgba(34,197,94,.10)" : 
+                                       sub.PaymentStatus == "Failed" ? "rgba(239,68,68,.10)" : 
+                                       sub.PaymentStatus == "Cancelled" ? "rgba(148,163,184,.10)" : "rgba(244,121,32,.10)";
+                        
+                        <tr>
+                            <td class="td-equip">
+                                <div style="font-weight:600;color:var(--mx-txt);">@sub.Company?.CompanyName</div>
+                                @if (sub.IsTrial)
+                                {
+                                    <span class="badge badge-inprog" style="margin-top:4px;">Trial</span>
+                                }
+                            </td>
+                            <td>
+                                <div style="font-weight:600;color:var(--mx-txt);">@sub.Plan?.Name</div>
+                                @if (sub.Plan?.Name == "Starter" && sub.Plan?.MonthlyPrice == 0)
+                                {
+                                    <div style="font-size:12px;color:var(--mx-blue);font-weight:600;">FREE (14-Day Trial)</div>
+                                }
+                                else
+                                {
+                                    <div style="font-size:12px;color:var(--mx-muted);">$@sub.Plan?.MonthlyPrice.ToString("N2")/mo</div>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge" style="background:@statusBg;color:@statusColor;padding:5px 11px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
+                                    @statusText
+                                </span>
+                            </td>
+                            <td style="color:var(--mx-muted);font-size:13px;">@sub.StartDate.ToString("MMM dd, yyyy")</td>
+                            <td style="color:var(--mx-muted);font-size:13px;">@sub.EndDate.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                @if (isExpired)
+                                {
+                                    <span style="color:var(--mx-red);font-weight:700;font-size:13px;">Expired</span>
+                                }
+                                else if (isExpiring)
+                                {
+                                    <span style="color:var(--mx-orange);font-weight:700;font-size:13px;">@daysLeft days</span>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--mx-muted);font-size:13px;">@daysLeft days</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge" style="background:@paymentBg;color:@paymentColor;padding:5px 10px;font-size:11px;font-weight:600;">
+                                    @sub.PaymentStatus
+                                </span>
+                            </td>
+                            <td style="text-align:right;">
+                                <div class="action-menu">
+                                    <button class="action-trigger">Actions <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                    <div class="action-dropdown">
+                                        <a href="#" onclick="extendSubscription(@sub.SubscriptionId); return false;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                                            </svg>
+                                            Extend Subscription
+                                        </a>
+                                        <a href="#" onclick="updatePaymentStatus(@sub.SubscriptionId); return false;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                            </svg>
+                                            Update Payment
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ══════════════════════════════════════
+     MODAL: ASSIGN SUBSCRIPTION
+════════════════════════════════════════ -->
+<div id="assignModal" class="mx-modal-overlay">
+    <div class="mx-modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="modal-title">Assign Subscription</div>
+                    <div class="modal-subtitle">Assign a subscription plan to a company</div>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeAssignModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="assignForm">
+                <div class="modal-section-label">Company & Plan</div>
+                
+                <div class="modal-full">
+                    <label class="mx-label">Company <span class="required">*</span></label>
+                    <select id="companyId" class="mx-select" required>
+                        <option value="">Select Company</option>
+                    </select>
+                </div>
+                
+                <div class="modal-full">
+                    <label class="mx-label">Subscription Plan <span class="required">*</span></label>
+                    <select id="planId" class="mx-select" required>
+                        <option value="">Select Plan</option>
+                    </select>
+                </div>
+                
+                <div class="modal-section-label" style="margin-top:24px;">Subscription Period</div>
+                
+                <div class="modal-grid-2">
+                    <div>
+                        <label class="mx-label">Start Date <span class="required">*</span></label>
+                        <input type="date" id="startDate" class="mx-input" required />
+                    </div>
+                    <div>
+                        <label class="mx-label">End Date <span class="required">*</span></label>
+                        <input type="date" id="endDate" class="mx-input" required />
+                    </div>
+                </div>
+                
+                <div class="modal-section-label" style="margin-top:24px;">Payment & Status</div>
+                
+                <div class="modal-full">
+                    <label class="mx-label">Payment Status</label>
+                    <select id="paymentStatus" class="mx-select">
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                
+                <div class="modal-full" style="margin-bottom:0;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--mx-txt);">
+                        <input type="checkbox" id="isTrial" style="width:18px;height:18px;cursor:pointer;" />
+                        <span>Trial Subscription</span>
+                    </label>
+                    <div class="input-hint">Check if this is a trial subscription period</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" onclick="closeAssignModal()">Cancel</button>
+            <button class="btn-modal-submit" onclick="assignSubscription()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Assign Subscription
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: EXTEND SUBSCRIPTION
+════════════════════════════════════════ -->
+<div id="extendModal" class="mx-modal-overlay">
+    <div class="mx-modal" style="max-width:480px;">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="modal-title">Extend Subscription</div>
+                    <div class="modal-subtitle">Set a new expiration date</div>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeExtendModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="extendForm">
+                <input type="hidden" id="extendSubscriptionId" />
+                <div class="modal-full" style="margin-bottom:0;">
+                    <label class="mx-label">New End Date <span class="required">*</span></label>
+                    <input type="date" id="newEndDate" class="mx-input" required />
+                    <div class="input-hint">Select the new expiration date for this subscription</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" onclick="closeExtendModal()">Cancel</button>
+            <button class="btn-modal-submit" onclick="submitExtend()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Extend
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: UPDATE PAYMENT STATUS
+════════════════════════════════════════ -->
+<div id="paymentModal" class="mx-modal-overlay">
+    <div class="mx-modal" style="max-width:480px;">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="modal-title">Update Payment Status</div>
+                    <div class="modal-subtitle">Change the payment status</div>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="paymentForm">
+                <input type="hidden" id="paymentSubscriptionId" />
+                <div class="modal-full" style="margin-bottom:0;">
+                    <label class="mx-label">Payment Status <span class="required">*</span></label>
+                    <select id="newPaymentStatus" class="mx-select" required>
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <div class="input-hint">Select the current payment status for this subscription</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" onclick="closePaymentModal()">Cancel</button>
+            <button class="btn-modal-submit" onclick="submitPaymentUpdate()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Update Status
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// Load companies and plans on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCompanies();
+    await loadPlans();
+    
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    const oneYearLater = new Date();
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    document.getElementById('startDate').value = today;
+    document.getElementById('endDate').value = oneYearLater.toISOString().split('T')[0];
+});
+
+async function loadCompanies() {
+    try {
+        const response = await fetch('/api/companies');
+        const companies = await response.json();
+        const select = document.getElementById('companyId');
+        companies.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.companyId;
+            option.textContent = c.companyName;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading companies:', error);
+    }
+}
+
+async function loadPlans() {
+    try {
+        const response = await fetch('/api/subscription-plans');
+        const plans = await response.json();
+        const select = document.getElementById('planId');
+        plans.forEach(p => {
+            if (p.isActive) {
+                const option = document.createElement('option');
+                option.value = p.planId;
+                option.dataset.planName = p.name;
+                option.dataset.isFree = p.monthlyPrice === 0;
+                if (p.name === 'Starter' && p.monthlyPrice === 0) {
+                    option.textContent = p.name + ' - FREE (14-Day Trial)';
+                } else {
+                    option.textContent = p.name + ' - $' + p.monthlyPrice + '/mo';
+                }
+                select.appendChild(option);
+            }
+        });
+        
+        // Add event listener to auto-set trial period for Starter plan
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.dataset.planName === 'Starter' && selectedOption.dataset.isFree === 'true') {
+                // Auto-check trial checkbox
+                document.getElementById('isTrial').checked = true;
+                
+                // Auto-set end date to 14 days from start date
+                const startDate = document.getElementById('startDate').value;
+                if (startDate) {
+                    const start = new Date(startDate);
+                    start.setDate(start.getDate() + 14);
+                    document.getElementById('endDate').value = start.toISOString().split('T')[0];
+                }
+            }
+        });
+        
+        // Also update end date when start date changes if Starter plan is selected
+        document.getElementById('startDate').addEventListener('change', function() {
+            const planSelect = document.getElementById('planId');
+            const selectedOption = planSelect.options[planSelect.selectedIndex];
+            if (selectedOption && selectedOption.dataset.planName === 'Starter' && selectedOption.dataset.isFree === 'true') {
+                const start = new Date(this.value);
+                start.setDate(start.getDate() + 14);
+                document.getElementById('endDate').value = start.toISOString().split('T')[0];
+            }
+        });
+    } catch (error) {
+        console.error('Error loading plans:', error);
+    }
+}
+
+function openAssignModal() {
+    document.getElementById('assignModal').classList.add('open');
+}
+
+function closeAssignModal() {
+    document.getElementById('assignModal').classList.remove('open');
+    document.getElementById('assignForm').reset();
+}
+
+async function assignSubscription() {
+    const data = {
+        companyId: parseInt(document.getElementById('companyId').value),
+        planId: parseInt(document.getElementById('planId').value),
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        isTrial: document.getElementById('isTrial').checked,
+        paymentStatus: document.getElementById('paymentStatus').value
+    };
+
+    try {
+        const response = await fetch('/superadmin/subscriptions/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Subscription assigned successfully!');
+            location.reload();
+        } else {
+            alert('Failed to assign subscription: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred.');
+    }
+}
+
+function extendSubscription(subscriptionId) {
+    document.getElementById('extendSubscriptionId').value = subscriptionId;
+    document.getElementById('extendModal').classList.add('open');
+}
+
+function closeExtendModal() {
+    document.getElementById('extendModal').classList.remove('open');
+    document.getElementById('extendForm').reset();
+}
+
+async function submitExtend() {
+    const subscriptionId = document.getElementById('extendSubscriptionId').value;
+    const newEndDate = document.getElementById('newEndDate').value;
+
+    try {
+        const response = await fetch('/superadmin/subscriptions/' + subscriptionId + '/extend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newEndDate: newEndDate })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Subscription extended successfully!');
+            location.reload();
+        } else {
+            alert('Failed to extend subscription.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred.');
+    }
+}
+
+function updatePaymentStatus(subscriptionId) {
+    document.getElementById('paymentSubscriptionId').value = subscriptionId;
+    document.getElementById('paymentModal').classList.add('open');
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').classList.remove('open');
+    document.getElementById('paymentForm').reset();
+}
+
+async function submitPaymentUpdate() {
+    const subscriptionId = document.getElementById('paymentSubscriptionId').value;
+    const paymentStatus = document.getElementById('newPaymentStatus').value;
+
+    try {
+        const response = await fetch('/superadmin/subscriptions/' + subscriptionId + '/payment-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentStatus: paymentStatus })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Payment status updated successfully!');
+            location.reload();
+        } else {
+            alert('Failed to update payment status.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred.');
+    }
+}
+</script>
+}
