@@ -1,0 +1,189 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MaintenX Role Badge System
+   Consistent, reusable role badge styling for User Management
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base Role Badge ────────────────────────────────────────────────────── */
+.mx-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: var(--mx-body);
+    white-space: nowrap;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+}
+
+/* ── SuperAdmin (Premium Gradient) ────────────────────────────────────── */
+.mx-role-superadmin {
+    background: linear-gradient(135deg, #8B5CF6, #EC4899);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25);
+}
+
+/* ── Owner (Soft Red/Pink) ────────────────────────────────────────────── */
+.mx-role-owner {
+    background: rgba(239, 68, 68, 0.12);
+    color: #DC2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* ── Admin (Orange) ────────────────────────────────────────────────────── */
+.mx-role-admin {
+    background: rgba(244, 121, 32, 0.12);
+    color: #EA580C;
+    border: 1px solid rgba(244, 121, 32, 0.2);
+}
+
+/* ── Supervisor (Purple) ───────────────────────────────────────────────── */
+.mx-role-supervisor {
+    background: rgba(139, 92, 246, 0.12);
+    color: #7C3AED;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* ── Technician (Blue) ─────────────────────────────────────────────────── */
+.mx-role-technician {
+    background: rgba(43, 126, 212, 0.12);
+    color: #1D4ED8;
+    border: 1px solid rgba(43, 126, 212, 0.2);
+}
+
+/* ── InventoryManager (Teal/Cyan) ──────────────────────────────────────── */
+.mx-role-inventorymanager {
+    background: rgba(20, 184, 166, 0.12);
+    color: #0D9488;
+    border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+/* ── User/Requester (Green) ────────────────────────────────────────────── */
+.mx-role-user,
+.mx-role-requester {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16A34A;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* ── Fallback/Unknown (Gray) ───────────────────────────────────────────── */
+.mx-role-default {
+    background: rgba(107, 122, 153, 0.12);
+    color: #475569;
+    border: 1px solid rgba(107, 122, 153, 0.2);
+}
+
+/* ── Role Badge Icon (Optional) ────────────────────────────────────────── */
+.mx-role-badge svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+/* ── Role Badge Container (for multiple roles) ─────────────────────────── */
+.mx-role-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* ── Table Cell Alignment ──────────────────────────────────────────────── */
+td .mx-role-badges {
+    margin: -2px 0; /* Compensate for badge padding to maintain row height */
+}
+
+/* ── Hover Effect (Optional) ───────────────────────────────────────────── */
+.mx-role-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mx-role-superadmin:hover {
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+}
+
+/* ── Responsive Adjustments ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .mx-role-badge {
+        font-size: 10.5px;
+        padding: 3px 10px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Employment Type Badge System
+   Consistent badge styling for Personnel Management
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── FullTime (Blue) ───────────────────────────────────────────────────── */
+.badge-employment-fulltime {
+    background: rgba(43, 126, 212, 0.12);
+    color: #1D4ED8;
+    border: 1px solid rgba(43, 126, 212, 0.2);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* ── PartTime (Teal) ───────────────────────────────────────────────────── */
+.badge-employment-parttime {
+    background: rgba(20, 184, 166, 0.12);
+    color: #0D9488;
+    border: 1px solid rgba(20, 184, 166, 0.2);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* ── Contractor (Purple) ───────────────────────────────────────────────── */
+.badge-employment-contractor {
+    background: rgba(139, 92, 246, 0.12);
+    color: #7C3AED;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* ── Intern (Yellow) ───────────────────────────────────────────────────── */
+.badge-employment-intern {
+    background: rgba(250, 204, 21, 0.12);
+    color: #CA8A04;
+    border: 1px solid rgba(250, 204, 21, 0.2);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* ── Temporary (Gray) ──────────────────────────────────────────────────── */
+.badge-employment-temporary {
+    background: rgba(107, 122, 153, 0.12);
+    color: #475569;
+    border: 1px solid rgba(107, 122, 153, 0.2);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}

@@ -267,6 +267,10 @@
         </div>
         <div class="modal-footer">
             <button class="btn-modal-cancel" id="closeDetailsBtn">Close</button>
+            <button class="btn-modal-submit" id="exportPdfBtn" style="background:linear-gradient(135deg,#DC2626,#B91C1C);box-shadow:0 4px 14px rgba(220,38,38,.35);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export PDF
+            </button>
         </div>
     </div>
 </div>
@@ -565,6 +569,64 @@
 
     document.getElementById('closeDetailsBtn').addEventListener('click', function() {
         closeModal('woDetailsModal');
+    });
+
+    // ── PDF Export ──────────────────────────────────
+    document.getElementById('exportPdfBtn')?.addEventListener('click', async function() {
+        const woId = document.getElementById('details-modal-subtitle')?.textContent.replace('#WO-', '').replace(/^0+/, '');
+        
+        if (!woId) {
+            showToast('Unable to export: Work Order ID not found', false);
+            return;
+        }
+        
+        try {
+            // Disable button and show loading state
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity="0.25"/><path d="M4 12a8 8 0 018-8" opacity="0.75"/></svg> Generating PDF...';
+            
+            // Fetch PDF from server
+            const response = await fetch(`/admin/work-orders/${woId}/export-pdf`, {
+                method: 'GET'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to generate PDF');
+            }
+            
+            // Get PDF blob
+            const blob = await response.blob();
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `WorkOrder_WO-${String(woId).padStart(4, '0')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Show success message
+            showToast('PDF exported successfully!', true);
+            
+            // Restore button
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showToast('Failed to export PDF: ' + error.message, false);
+            
+            // Restore button
+            const btn = this;
+            btn.disabled = false;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF';
+        }
     });
 
     // Close modal on outside click

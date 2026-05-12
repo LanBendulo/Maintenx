@@ -26,6 +26,7 @@ namespace IT15_Project.Controllers
         private readonly ICostService _costService;
         private readonly AssetStatusService _assetStatusService;
         private readonly Services.Parts.IPartsService _partsService;
+        private readonly IWorkOrderPdfService _pdfService;
 
         public DashboardController(
             ApplicationDbContext context, 
@@ -33,7 +34,8 @@ namespace IT15_Project.Controllers
             ITenantService tenantService,
             ICostService costService,
             AssetStatusService assetStatusService,
-            Services.Parts.IPartsService partsService)
+            Services.Parts.IPartsService partsService,
+            IWorkOrderPdfService pdfService)
         {
             _context = context;
             _userManager = userManager;
@@ -41,6 +43,7 @@ namespace IT15_Project.Controllers
             _costService = costService;
             _assetStatusService = assetStatusService;
             _partsService = partsService;
+            _pdfService = pdfService;
         }
 
         [Route("dashboard")]
@@ -1407,6 +1410,45 @@ namespace IT15_Project.Controllers
                 {
                     success = false,
                     message = "Failed to load parts",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Export Work Order as PDF
+        /// Generates a professional printable PDF report
+        /// </summary>
+        [HttpGet]
+        [Route("work-orders/{id}/export-pdf")]
+        public async Task<IActionResult> ExportWorkOrderPdf(int id)
+        {
+            try
+            {
+                var companyId = _tenantService.GetCurrentCompanyId();
+
+                // Validate work order exists and belongs to tenant
+                var workOrderExists = await _context.WorkOrders
+                    .AnyAsync(w => w.WorkOrderId == id && w.CompanyId == companyId);
+
+                if (!workOrderExists)
+                {
+                    return NotFound(new { success = false, message = "Work order not found." });
+                }
+
+                // Generate PDF
+                var pdfBytes = await _pdfService.GenerateWorkOrderPdfAsync(id, companyId);
+
+                // Return as downloadable file
+                var fileName = $"WorkOrder_WO-{id:D4}_{DateTime.Now:yyyyMMdd}.pdf";
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Failed to generate PDF",
                     error = ex.Message
                 });
             }

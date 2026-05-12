@@ -61,6 +61,9 @@ builder.Services.AddScoped<IT15_Project.Services.Parts.IPartsService,
 // Register SubscriptionService for SaaS subscription management and enforcement
 builder.Services.AddScoped<SubscriptionService>();
 
+// Register WorkOrderPdfService for PDF export functionality
+builder.Services.AddScoped<IWorkOrderPdfService, WorkOrderPdfService>();
+
 // ============================================================
 // EMAIL INFRASTRUCTURE
 // ============================================================
