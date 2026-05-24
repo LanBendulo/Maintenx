@@ -149,27 +149,33 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 // ============================================================
 // EXTERNAL AUTHENTICATION PROVIDERS
 // ============================================================
-// Add Google OAuth authentication (optional - preserves local login)
-builder.Services.AddAuthentication()
-    .AddGoogle(googleOptions =>
-    {
-        // Load Google OAuth credentials from configuration
-        // Development: appsettings.Development.json or user secrets
-        // Production: Environment variables or appsettings.Production.json
-        googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
-        googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
-        
-        // Callback path for OAuth redirect (default: /signin-google)
-        // Must match Google Cloud Console authorized redirect URI
-        googleOptions.CallbackPath = "/signin-google";
-        
-        // Request email and profile scopes
-        googleOptions.Scope.Add("email");
-        googleOptions.Scope.Add("profile");
-        
-        // Save tokens for future API calls (optional)
-        googleOptions.SaveTokens = true;
-    });
+// Add Google OAuth authentication (optional - only if credentials are configured)
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    builder.Services.AddAuthentication()
+        .AddGoogle(googleOptions =>
+        {
+            // Load Google OAuth credentials from configuration
+            // Development: appsettings.Development.json or user secrets
+            // Production: Environment variables or appsettings.Production.json
+            googleOptions.ClientId = googleClientId;
+            googleOptions.ClientSecret = googleClientSecret;
+            
+            // Callback path for OAuth redirect (default: /signin-google)
+            // Must match Google Cloud Console authorized redirect URI
+            googleOptions.CallbackPath = "/signin-google";
+            
+            // Request email and profile scopes
+            googleOptions.Scope.Add("email");
+            googleOptions.Scope.Add("profile");
+            
+            // Save tokens for future API calls (optional)
+            googleOptions.SaveTokens = true;
+        });
+}
 // ============================================================
 
 builder.Services.AddControllersWithViews();
